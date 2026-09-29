@@ -1,0 +1,10 @@
+name: lofi_anime
+positive_tags: >-
+  masterpiece, best quality, score_7, safe, lofi, pastel colors, soft lighting, cozy,
+  muted colors, flat color, detailed background
+positive_natural: >-
+  A cozy lofi anime illustration with pastel, muted colors, soft warm lighting and a calm mood.
+negative_tags: >-
+  worst quality, low quality, lowres, bad anatomy, bad hands, text, watermark, signature, blurry
+negative_natural: low quality, deformed hands, text, watermark, blurry, harsh contrast
+camera_preferences: [medium shot, wide shot]

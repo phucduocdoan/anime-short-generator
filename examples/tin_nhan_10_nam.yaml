@@ -1,0 +1,38 @@
+project:
+  id: tin_nhan_10_nam
+  title: "Tin nhắn từ 10 năm sau"
+
+content:
+  topic: >
+    Một thanh niên nhận được tin nhắn từ chính mình 10 năm trong tương lai.
+  duration_seconds: 45
+  tone: [mysterious, emotional]
+  audience: "18-30"
+  language: vi
+
+characters:
+  minh:
+    name: Minh
+    age: 22
+    tags: "1boy, solo, young man, short black hair, messy hair, brown eyes, slim"
+    description: "a slim 22-year-old Vietnamese young man with short, slightly messy black hair and brown eyes"
+    outfit_tags: "dark navy oversized hoodie, black pants"
+    outfit_description: "wearing a dark navy oversized hoodie and black trousers"
+
+voice:
+  provider: vieneu
+  speed: 1.0
+
+visual:
+  provider: anima
+  style: cinematic_anime
+
+video:
+  provider: animegen
+
+subtitle:
+  enabled: true
+  style: shorts
+
+music:
+  enabled: false

@@ -1,0 +1,13 @@
+name: cinematic_anime
+positive_tags: >-
+  masterpiece, best quality, score_7, safe, anime screencap, cinematic lighting,
+  detailed background, soft atmospheric lighting, clean lineart, depth of field
+positive_natural: >-
+  A high quality cinematic anime illustration with a detailed environment, soft atmospheric
+  lighting, clean line art and subtle film grain.
+negative_tags: >-
+  worst quality, low quality, lowres, bad anatomy, bad hands, extra fingers, missing fingers,
+  text, watermark, signature, logo, blurry, jpeg artifacts
+negative_natural: >-
+  low quality, deformed hands, extra fingers, distorted face, text, watermark, blurry
+camera_preferences: [close-up, medium shot, establishing shot]

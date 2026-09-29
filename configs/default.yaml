@@ -1,0 +1,87 @@
+workspace_dir: workspace
+
+llm:
+  base_url: http://localhost:8093/v1
+  model: qwen3-vl-8b
+  api_key_env: LLM_API_KEY
+  temperature: 0.8
+  max_retries: 3
+  timeout_seconds: 180
+
+script:
+  words_per_second: 2.7
+  hook_seconds: 3
+  max_shots_per_scene: 3
+
+tts:
+  provider: vieneu
+  elevenlabs:
+    model_id: eleven_v3
+    voice_id: null
+    output_format: mp3_44100_128
+  vieneu:
+    voice: null
+    device: cuda
+
+timeline:
+  scene_gap_seconds: 0.15
+  min_shot_seconds: 1.5
+  max_shot_seconds: 5.0
+
+image:
+  provider: anima
+  width: 864
+  height: 1536
+  providers:
+    anima:
+      prompt_style: tags
+      steps: 10
+      cfg: 1.0
+    netayume:
+      repo: duongve/NetaYume-Lumina-Image-2.0-Diffusers-v40
+      prompt_style: tags
+      steps: 40
+      cfg: 5.0
+    zanime:
+      repo: SeeSee21/Z-Anime
+      prompt_style: natural
+      steps: 8
+      cfg: 1.0
+
+video:
+  provider: animegen          # falls back to still_motion when VRAM gate fails
+  animegen:
+    repo: aidealab/AnimeGen-I2V
+    width: 480
+    height: 832
+    steps: 4
+    cfg: 1.0
+    native_fps: 16
+    max_frames: 81
+    min_free_vram_gb: 24
+  still_motion:
+    oversample: 1.25          # source is rendered this much larger than output before cropping
+    grain: 0.03
+    vignette: 0.15
+
+subtitle:
+  enabled: true
+  style: shorts
+  font_name: Be Vietnam Pro
+  max_words: 5
+  max_chars: 28
+
+render:
+  crf: 18
+  audio_bitrate: 192k
+  loudness_lufs: -14
+  true_peak_db: -1
+  fade_seconds: 0.3
+
+music:
+  enabled: false
+  path: null
+  volume_db: -22
+
+gpu:
+  device: cuda

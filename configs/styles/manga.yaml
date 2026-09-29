@@ -1,0 +1,9 @@
+name: manga
+positive_tags: >-
+  masterpiece, best quality, score_7, safe, monochrome, greyscale, manga, screentone,
+  ink, high contrast, dramatic shadows
+positive_natural: >-
+  A black and white manga panel drawing with ink lines, screentone shading and dramatic contrast.
+negative_tags: worst quality, low quality, lowres, bad anatomy, bad hands, text, watermark, color
+negative_natural: low quality, deformed hands, text, watermark, colors
+camera_preferences: [close-up, dutch angle, medium shot]
