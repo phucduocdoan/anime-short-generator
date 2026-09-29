@@ -329,3 +329,18 @@ def test_run_tts_skips_existing_then_respects_force(tmp_path: Path, monkeypatch)
 
     run_tts(project, project_dir, config, force=True)
     assert provider.calls == 4
+
+
+def test_run_tts_regenerates_wav_without_state(tmp_path: Path, monkeypatch):
+    """A wav on disk that project.json does not record (crash before save) must be redone."""
+    provider = _DummyProvider()
+    monkeypatch.setattr("anime_short.tts.stage.get_tts", lambda config, voice: provider)
+    project = _make_project()
+    project_dir = tmp_path / "proj"
+    (project_dir / "audio").mkdir(parents=True)
+    (project_dir / "audio" / "scene_01.wav").write_bytes(b"stale")
+
+    run_tts(project, project_dir, load_config())
+
+    assert provider.calls == 2
+    assert all(s.audio is not None for s in project.scenes)

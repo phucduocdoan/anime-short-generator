@@ -135,6 +135,10 @@ def run_stage(
     project: ProjectSpec, project_dir: Path, config: AppConfig, stage: str, force: bool = False
 ) -> None:
     log.info("stage %s: start", stage)
+    if force:
+        # Regenerated upstream output invalidates everything after it.
+        for later in STAGES[STAGES.index(stage) + 1 :]:
+            project.stages[later] = StageStatus.pending
     try:
         stage_function(stage)(project, project_dir, config, force)
     except BaseException:

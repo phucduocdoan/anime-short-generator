@@ -159,7 +159,7 @@ The `videos` stage records `video.mode` per shot so render and reports know what
 `pipeline/timeline.py`, pure functions, fully unit tested:
 - scene start = cumulative sum of scene durations (+ `scene_gap_seconds`, default 0.15).
 - split scene duration over shots by weight; snap cut points to nearest word boundary when words exist.
-- if any shot > `max_shot_seconds` (5.0) → scene needs re-plan (returned, runner calls `replan_scene`).
+- if any shot > `max_shot_seconds` (5.0) → scene needs re-plan (the timeline stage calls `script.stage.replan_scene` once, so it needs the LLM).
 - shots < `min_shot_seconds` (1.5) are merged into neighbour.
 
 ## 10. Subtitles

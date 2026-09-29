@@ -18,7 +18,10 @@ def total_timeline_duration(project: ProjectSpec) -> float:
 
 
 def concat_shots(project: ProjectSpec, project_dir: Path, out_dir: Path) -> Path:
-    clip_paths = [project_dir / shot.video.path for shot in project.all_shots() if shot.video]
+    missing = [shot.id for shot in project.all_shots() if shot.video is None]
+    if missing:
+        raise ValueError(f"shots without a clip: {', '.join(missing)}; run the videos stage")
+    clip_paths = [project_dir / shot.video.path for shot in project.all_shots()]
     list_path = out_dir / "concat.txt"
     ff.write_concat_file(clip_paths, list_path)
     out = out_dir / "video_concat.mp4"

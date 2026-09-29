@@ -11,7 +11,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from anime_short.utils.media import check_ffmpeg
+from anime_short.utils.media import FFmpegError, check_ffmpeg
 
 
 def write_concat_file(paths: list[Path], list_path: Path) -> None:
@@ -146,6 +146,8 @@ def measure_loudness(input_path: Path, target_lufs: float, true_peak: float) -> 
     proc = subprocess.run(
         [check_ffmpeg(), "-y", "-hide_banner", *args], capture_output=True, text=True
     )
+    if proc.returncode != 0:
+        raise FFmpegError(f"loudnorm measurement failed:\n{proc.stderr.strip()}")
     return parse_loudnorm_json(proc.stderr)
 
 
@@ -220,6 +222,10 @@ def build_final_encode_args(
         str(video_path),
         "-i",
         str(audio_path),
+        "-map",
+        "0:v:0",
+        "-map",
+        "1:a:0",
         "-vf",
         vf,
         "-af",

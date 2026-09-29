@@ -102,3 +102,17 @@ def test_cli_lists_all_commands():
     assert result.exit_code == 0
     for command in (*STAGES, "generate", "resume", "status"):
         assert command in result.output
+
+
+def test_forcing_a_stage_resets_later_stages(workspace_config, monkeypatch):
+    project, project_dir = runner.create_project({"content": {"topic": "t"}}, workspace_config)
+    for stage in STAGES:
+        project.stages[stage] = StageStatus.done
+    monkeypatch.setattr(runner, "stage_function", lambda stage: lambda *a: None)
+
+    runner.run_stage(project, project_dir, workspace_config, "tts", force=True)
+
+    stages = load_project(project_dir).stages
+    assert stages["plan"] == StageStatus.done
+    assert stages["tts"] == StageStatus.done
+    assert all(stages[s] == StageStatus.pending for s in STAGES[STAGES.index("tts") + 1 :])

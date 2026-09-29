@@ -136,7 +136,6 @@ def run_timeline(
         durations = resolve_scene(project, scene, config)
         is_last = idx == len(project.scenes) - 1
         durations[-1] += tail_seconds if is_last else gap_seconds
-        scene.shots[-1].duration = durations[-1]
 
         scene.start = cursor
         shot_cursor = cursor

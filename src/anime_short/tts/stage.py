@@ -20,7 +20,13 @@ def run_tts(
     def audio_path(scene_id: str) -> Path:
         return project_dir / "audio" / f"{scene_id}.wav"
 
-    pending = [s for s in project.scenes if force or not audio_path(s.id).exists()]
+    # Skip only what project.json records as done: a wav without state (crash before save, or a
+    # leftover from an earlier script) must be regenerated, not silently kept.
+    pending = [
+        s
+        for s in project.scenes
+        if force or s.audio is None or not (project_dir / s.audio.path).exists()
+    ]
     if not pending:
         log.info("tts: nothing to do (%d scene(s) already synthesized)", len(project.scenes))
         return
