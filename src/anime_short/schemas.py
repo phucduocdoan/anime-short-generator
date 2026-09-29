@@ -102,6 +102,7 @@ class VisualSpec(BaseModel):
     shot_type: str = ""  # e.g. "close-up", "medium shot", "establishing shot"
     mood: str = ""
     extra: str = ""
+    text: str = ""  # exact English words visible in the frame (a message, a sign); usually empty
 
 
 class ImageInfo(BaseModel):

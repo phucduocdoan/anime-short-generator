@@ -12,7 +12,7 @@ from pathlib import Path
 
 from anime_short.config import AppConfig
 from anime_short.pipeline.state import save_project
-from anime_short.schemas import ProjectSpec, Scene
+from anime_short.schemas import CameraMove, ProjectSpec, Scene
 from anime_short.script.generator import characters_from_draft, generate_script, scenes_from_draft
 from anime_short.script.llm import LLMClient
 from anime_short.script.scene_planner import plan_scene, shot_count_for_duration
@@ -38,11 +38,23 @@ def run_plan(
     project: ProjectSpec, project_dir: Path, config: AppConfig, force: bool = False
 ) -> None:
     llm = LLMClient(config.llm)
-    for scene in project.scenes:
+    for index, scene in enumerate(project.scenes):
         if scene.shots and not force:
             continue
-        scene.shots = plan_scene(scene, project.characters, config, llm, language=project.language)
+        scene.shots = plan_scene(
+            scene,
+            project.characters,
+            config,
+            llm,
+            language=project.language,
+            previous_camera=_previous_camera(project, index),
+        )
         save_project(project, project_dir)
+
+
+def _previous_camera(project: ProjectSpec, index: int) -> CameraMove | None:
+    previous = project.scenes[index - 1].shots if index > 0 else []
+    return previous[-1].camera if previous else None
 
 
 def replan_scene(project: ProjectSpec, scene: Scene, config: AppConfig) -> None:
@@ -61,6 +73,7 @@ def replan_scene(project: ProjectSpec, scene: Scene, config: AppConfig) -> None:
         shot_count=count,
         scene_duration=duration,
         language=project.language,
+        previous_camera=_previous_camera(project, project.scenes.index(scene)),
         extra_constraints=(
             f"Hard constraint: no single shot may exceed {config.timeline.max_shot_seconds:.1f} "
             "seconds of screen time; the scene's real narration audio duration is now known, "

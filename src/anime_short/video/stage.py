@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from anime_short.config import AppConfig
@@ -31,6 +32,12 @@ def _needs_generation(shot: Shot) -> bool:
     return shot.image is not None and shot.duration is not None
 
 
+def _keeps_keyframe(shot: Shot) -> bool:
+    """Shots with on-screen text are animated with still_motion: i2v rewrites screens and writing
+    into gibberish even when the prompt says they stay unchanged (checked on real clips)."""
+    return bool(shot.visual.text)
+
+
 def _run_shots(
     generator: VideoGenerator,
     mode: VideoMode,
@@ -38,13 +45,14 @@ def _run_shots(
     project: ProjectSpec,
     project_dir: Path,
     force: bool,
+    select: Callable[[Shot], bool],
 ) -> None:
     clips_dir = project_dir / "clips"
     clips_dir.mkdir(parents=True, exist_ok=True)
 
     for scene in project.scenes:
         for shot in scene.shots:
-            if not _needs_generation(shot):
+            if not _needs_generation(shot) or not select(shot):
                 continue
             out_path = clips_dir / f"{shot.id}.mp4"
             # State-backed skip: images/timeline clear `shot.video` when the clip goes stale.
@@ -71,8 +79,13 @@ def run_videos(
     project: ProjectSpec, project_dir: Path, config: AppConfig, force: bool = False
 ) -> None:
     provider = config.video.provider
+    i2v_ok = False
 
-    if provider == "animegen":
+    if provider == "animegen" and not any(
+        _needs_generation(s) and not _keeps_keyframe(s) for sc in project.scenes for s in sc.shots
+    ):
+        i2v_ok = True  # nothing to animate with i2v; don't load the model
+    elif provider == "animegen":
         generator = get_video_generator(config, "animegen")
         generator.width, generator.height, generator.fps = (
             project.width,
@@ -82,8 +95,16 @@ def run_videos(
         min_free_gb = config.video.animegen.get("min_free_vram_gb", 24)
         try:
             with gpu_session(generator, min_free_gb=min_free_gb):
-                _run_shots(generator, VideoMode.i2v, "animegen", project, project_dir, force)
-            return
+                _run_shots(
+                    generator,
+                    VideoMode.i2v,
+                    "animegen",
+                    project,
+                    project_dir,
+                    force,
+                    lambda shot: not _keeps_keyframe(shot),
+                )
+            i2v_ok = True
         except InsufficientVRAM as exc:
             log.warning("videos: animegen unavailable, falling back to still_motion: %s", exc)
         except Exception as exc:  # noqa: BLE001 - narrowed to OOM below, re-raised otherwise
@@ -93,4 +114,7 @@ def run_videos(
 
     fallback = get_video_generator(config, "still_motion")
     fallback.width, fallback.height, fallback.fps = project.width, project.height, project.fps
-    _run_shots(fallback, VideoMode.still_motion, "still_motion", project, project_dir, force)
+    select = _keeps_keyframe if i2v_ok else (lambda shot: True)
+    _run_shots(
+        fallback, VideoMode.still_motion, "still_motion", project, project_dir, force, select
+    )

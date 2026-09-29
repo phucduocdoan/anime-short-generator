@@ -70,6 +70,8 @@ The authoritative definitions live in `schemas.py`. Summary:
   `image: ImageInfo | None` (path, seed, provider, prompt, negative_prompt),
   `video: VideoInfo | None` (path, mode `i2v|still_motion`, provider).
 - `CameraMove`: `static, push_in, pull_out, pan_left, pan_right, tilt_up, tilt_down`.
+  The planner must choose one (no default) and is told the previous shot's move, since each scene
+  is planned in its own call; a `static` shot right after another `static` becomes `push_in`.
 
 All paths stored **relative to the project dir**.
 
@@ -94,7 +96,8 @@ All paths stored **relative to the project dir**.
   (keeping the closest attempt). Scene count is derived from the word target (~13–20 words/scene),
   since the LLM writes ~15 words per scene regardless of the requested length.
 - `plan`: per scene, 1–3 shots. Each shot has a `VisualSpec` (single frame, English), a
-  `motion_prompt` (only subject/environment/camera motion, no appearance words), `camera`, and an
+  `motion_prompt` (only gentle subject/environment/camera motion, no appearance words; screens,
+  writing and graphics never change, because the i2v model turns that into gibberish), `camera`, and an
   estimated weight (relative duration). Characters are referenced by id; appearance text is **never**
   written by the LLM — the prompt builder injects it from the character bible.
 - `replan_scene(scene, actual_duration)`: re-split one scene into more shots after TTS.
@@ -120,7 +123,10 @@ netayume 14.7 s/img, 12.9 GB; zanime 7.5 s/img, 22.3 GB.
 
 Keyframe size: 864×1536 (exact 9:16, multiple of 16) unless the provider needs otherwise.
 
-`VisualSpec` fields: `subject`, `action`, `setting`, `lighting`, `shot_type`, `mood`, `extra`.
+`VisualSpec` fields: `subject`, `action`, `setting`, `lighting`, `shot_type`, `mood`, `extra`, `text`.
+`text` holds the exact words of any writing in the frame, in English, max 40 chars, usually empty:
+image models render short English text legibly but invent Chinese or gibberish for other
+languages or for writing that is only described. The planner must always emit it (required field).
 `prompt_builder.build(shot, characters, style, prompt_style) -> (prompt, negative)`:
 - `tags` style: comma-separated lowercase tags, quality prefix, character `tags`, style tags.
 - `natural` style: fluent English sentences, character `description`, style natural text.
@@ -137,6 +143,8 @@ Seeds: deterministic per shot (hash of project id + shot id) unless set.
 1. `animegen` (`aidealab/AnimeGen-I2V`, WanImageToVideoPipeline + Wan2.2 Lightning 4-step LoRA,
    CFG 1, 16 fps, frames = 4n+1 ≥ duration·16, max 81). Resolution 480×832 (default) or 720×1280.
    Use fp8 layerwise casting + model CPU offload to fit in shared VRAM.
+   Prompt: `Japanese anime style, <camera phrase>, <motion_prompt>, any screens, writing and
+   graphics stay exactly the same and do not change` (CFG 1 ignores the negative prompt).
    **VRAM gate:** before loading, if free VRAM < `video.animegen.min_free_vram_gb`, do not load;
    the stage falls back to `still_motion` for all shots and logs why.
    Postprocess: trim to duration, 16→project fps, lanczos upscale to 1080×1920.

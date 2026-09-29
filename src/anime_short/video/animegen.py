@@ -25,6 +25,9 @@ WAN_BASE_REPO = "Wan-AI/Wan2.2-I2V-A14B-Diffusers"
 LIGHTNING_REPO = "lightx2v/Wan2.2-Lightning"
 LIGHTNING_SUBDIR = "Wan2.2-I2V-A14B-4steps-lora-rank64-Seko-V1"
 NEGATIVE_PROMPT = "3d, cg, photo, stop, wait"
+# cfg=1.0 ignores the negative prompt; without this the model invents gibberish text or images on
+# screens and graphics that the motion prompt asks to change (checked on real clips).
+STABLE_CONTENT = "any screens, writing and graphics stay exactly the same and do not change"
 
 _CAMERA_PHRASE = {
     CameraMove.static: "camera holds steady",
@@ -148,7 +151,11 @@ class AnimeGenGenerator:
         width, height = self._resolution(source)
         source = source.resize((width, height))
 
-        text_prompt = f"Japanese anime style, {_CAMERA_PHRASE[camera]}, {prompt}".strip(", ")
+        text_prompt = ", ".join(
+            part
+            for part in ("Japanese anime style", _CAMERA_PHRASE[camera], prompt, STABLE_CONTENT)
+            if part
+        )
         seed = zlib.crc32(str(output_path).encode()) & 0xFFFFFFFF
         rng = torch.Generator(device="cuda").manual_seed(seed)
 

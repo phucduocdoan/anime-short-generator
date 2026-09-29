@@ -139,6 +139,18 @@ def test_natural_shot_type_already_ending_in_shot_is_not_doubled():
     assert "shot shot" not in prompt.lower()
 
 
+def test_shot_text_is_rendered_as_exact_english_words():
+    visual = VisualSpec(subject="phone screen", text="Are you there?")
+    natural, _ = build(make_shot(characters=[], visual=visual), {}, STYLE, PromptStyle.natural)
+    tags, _ = build(make_shot(characters=[], visual=visual), {}, STYLE, PromptStyle.tags)
+    assert 'the English text "Are you there?"' in natural
+    assert 'text "Are you there?"' in tags
+
+    plain = VisualSpec(subject="a phone screen glowing")
+    natural, _ = build(make_shot(characters=[], visual=plain), {}, STYLE, PromptStyle.natural)
+    assert "text" not in natural.lower()
+
+
 # --- deterministic_seed ---------------------------------------------------------------------
 
 

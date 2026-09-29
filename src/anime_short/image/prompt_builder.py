@@ -113,6 +113,8 @@ def _build_tags(shot: Shot, shot_characters: list[Character], style: StyleBible)
         if value:
             tags += _split_to_tags(value)
 
+    if shot.visual.text:
+        tags += ["english text", f'text "{shot.visual.text}"']
     tags += _FRAMING_TAGS
 
     prompt = ", ".join(_dedupe(tags))
@@ -153,6 +155,8 @@ def _build_natural(
         sentences.append(f"Mood: {v.mood}.")
     if v.extra:
         sentences.append(v.extra.strip().capitalize() + ".")
+    if v.text:
+        sentences.append(f'The only writing in the image is the English text "{v.text}".')
 
     sentences.append(_FRAMING_NATURAL)
 

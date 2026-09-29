@@ -12,7 +12,7 @@ import pytest
 from pydantic import BaseModel
 
 from anime_short.config import AppConfig, ImageConfig, LLMConfig, TTSConfig, VideoConfig
-from anime_short.schemas import AudioInfo, Character, ContentSpec, ProjectSpec, Scene
+from anime_short.schemas import AudioInfo, CameraMove, Character, ContentSpec, ProjectSpec, Scene
 from anime_short.script import generator, stage
 from anime_short.script.llm import LLMClient, LLMError
 from anime_short.script.scene_planner import (
@@ -121,6 +121,7 @@ def shot_payload(n: int) -> dict:
                 "shot_type": "close-up",
                 "mood": "tense",
                 "extra": "",
+                "text": "",
                 "motion_prompt": "slow push in, curtains drift",
                 "camera": "push_in",
                 "characters": ["minh"],
@@ -258,8 +259,37 @@ def test_estimate_scene_duration():
 
 
 def test_build_shots_ids_use_letters():
-    shots = build_shots("scene_01", [ShotDraft(subject="a"), ShotDraft(subject="b")])
+    shots = build_shots("scene_01", [ShotDraft(subject="a", camera="pan_left", text="")] * 2)
     assert [s.id for s in shots] == ["scene_01_a", "scene_01_b"]
+
+
+def test_build_shots_never_keeps_two_static_shots_in_a_row():
+    drafts = [ShotDraft(subject=c, camera="static", text="") for c in "abc"]
+
+    assert [s.camera for s in build_shots("scene_01", drafts)] == ["static", "push_in", "static"]
+    assert [s.camera for s in build_shots("scene_02", drafts[:1], CameraMove.static)] == ["push_in"]
+
+
+def test_build_shots_keeps_only_plain_english_text():
+    drafts = [
+        ShotDraft(subject="a", camera="static", text="I\u2019m here"),
+        ShotDraft(subject="b", camera="push_in", text="Tin nh\u1eafn t\u1eeb anh"),
+    ]
+    assert [s.visual.text for s in build_shots("scene_01", drafts)] == ["I'm here", ""]
+
+
+def test_run_plan_passes_previous_scene_camera(monkeypatch, tmp_path):
+    static_payload = shot_payload(1)
+    static_payload["shots"][0]["camera"] = "static"
+    llm = FakeLLM([static_payload, static_payload])
+    monkeypatch.setattr(stage, "LLMClient", lambda cfg: llm)
+    project = make_project(
+        scenes=[Scene(id="scene_01", narration="a"), Scene(id="scene_02", narration="b c")]
+    )
+
+    stage.run_plan(project, tmp_path, make_config())
+
+    assert [s.shots[0].camera for s in project.scenes] == ["static", "push_in"]
 
 
 def test_plan_scene_requests_exact_shot_count_and_builds_shots():
@@ -339,7 +369,7 @@ def test_run_script_force_regenerates(monkeypatch, tmp_path):
 def test_run_plan_skips_scenes_with_existing_shots(monkeypatch, tmp_path):
     llm = FakeLLM([shot_payload(1)])
     monkeypatch.setattr(stage, "LLMClient", lambda cfg: llm)
-    already_planned = build_shots("scene_01", [ShotDraft(subject="x")])
+    already_planned = build_shots("scene_01", [ShotDraft(subject="x", camera="static", text="")])
     project = make_project(
         scenes=[
             Scene(id="scene_01", narration="a", shots=already_planned),

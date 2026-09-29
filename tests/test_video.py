@@ -4,6 +4,7 @@ fallback, and stage skip/force/VRAM-fallback behaviour against fake generators (
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from pathlib import Path
 
 import numpy as np
@@ -250,3 +251,27 @@ def test_run_videos_regenerates_clip_without_state(tmp_path: Path, monkeypatch):
 
     assert fake.calls == 1
     assert project.scenes[0].shots[0].video is not None
+
+
+def test_run_videos_keeps_text_shots_on_still_motion(tmp_path: Path, monkeypatch):
+    i2v, still = FakeVideoGenerator(), FakeVideoGenerator()
+    monkeypatch.setattr(
+        stage_mod, "get_video_generator", lambda c, name: i2v if name == "animegen" else still
+    )
+    monkeypatch.setattr(stage_mod, "gpu_session", lambda generator, min_free_gb: nullcontext())
+    text_shot = make_shot(
+        id="scene_01_b", visual=VisualSpec(subject="phone screen", text="Are you there?")
+    )
+    project = make_project()
+    project.scenes[0].shots.append(text_shot)
+    _prep_project_image(tmp_path, project)
+
+    run_videos(project, tmp_path, make_config(provider="animegen"))
+
+    plain, with_text = project.scenes[0].shots
+    assert (i2v.calls, still.calls) == (1, 1)
+    assert plain.video.mode == VideoMode.i2v
+    assert with_text.video.mode == VideoMode.still_motion
+
+    run_videos(project, tmp_path, make_config(provider="animegen"), force=True)
+    assert (i2v.calls, still.calls) == (2, 2)

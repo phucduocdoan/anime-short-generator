@@ -11,14 +11,21 @@ Each shot must have:
   appearance (hair, eyes, face, body, outfit) — refer to them only by role or id; appearance is
   added automatically from the character bible.
 - `motion_prompt`: a short English phrase describing ONLY what moves within the shot (subject
-  motion, environment motion, camera motion) — no appearance, no narration content.
-- `camera`: one of static, push_in, pull_out, pan_left, pan_right, tilt_up, tilt_down.
+  motion, environment motion, camera motion) — no appearance, no narration content. Keep it to
+  gentle physical motion (a hand trembling, hair in the wind, rain, drifting light). Screens,
+  writing and graphics must stay unchanged: never have them flicker, glitch, scroll, flash, change
+  or show something new — the video model turns that into gibberish text and random images.
+- `camera`: one of static, push_in, pull_out, pan_left, pan_right, tilt_up, tilt_down. Pick the
+  move that serves the shot: push_in for emotion or a reveal, pull_out to show isolation or
+  context, pans to follow movement or explore a place, tilts for height or looking up/down. Use
+  static only for a deliberate still moment — a video where most shots are static feels dead.
 - `characters`: list of character ids (from the ones given below) appearing in this shot — include
   a character even if only part of them is visible (a hand, a silhouette); empty list only for
   pure scenery/object shots.
-- NEVER make readable writing part of the frame (message text, letters, names, signs, screen UI):
-  image models render it as gibberish. Show a glowing screen, a folded letter or a reaction
-  instead; the narration and subtitles carry the words.
+- `text`: the exact words of any writing visible in the frame (a message on a screen, a letter,
+  a sign), in ENGLISH, at most 4 short words that fit this scene's story; image models render
+  short English text but turn any other language into gibberish. Leave it empty (most shots)
+  when no writing is visible. Never describe writing or its words in the other fields.
 - `weight`: relative duration of this shot within the scene (1.0 = normal, 1.5 = longer,
   0.7 = shorter).
 
