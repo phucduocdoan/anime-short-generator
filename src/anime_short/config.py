@@ -34,7 +34,7 @@ class LLMConfig(BaseModel):
 
 
 class ScriptConfig(BaseModel):
-    words_per_second: float = 2.7
+    words_per_second: float = 4.2
     hook_seconds: float = 3
     max_shots_per_scene: int = 3
 

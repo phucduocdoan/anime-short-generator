@@ -36,7 +36,9 @@ def make_config() -> AppConfig:
 
 
 def make_project(**kwargs) -> ProjectSpec:
-    defaults = dict(id="p1", title="Title", content=ContentSpec(topic="a boy and a message"))
+    # 4s -> a 17-word target, which SCRIPT_PAYLOAD's 19 narration words meet on the first attempt
+    content = ContentSpec(topic="a boy and a message", duration_seconds=4)
+    defaults = dict(id="p1", title="Title", content=content)
     defaults.update(kwargs)
     return ProjectSpec(**defaults)
 
@@ -180,11 +182,40 @@ def test_generate_script_returns_validated_draft():
     llm = FakeLLM([SCRIPT_PAYLOAD])
     config = make_config()
     draft = generator.generate_script(
-        ContentSpec(topic="x", duration_seconds=45), "vi", config, llm, need_characters=True
+        ContentSpec(topic="x", duration_seconds=4), "vi", config, llm, need_characters=True
     )
     assert len(draft.scenes) == 2
     assert draft.characters[0].id == "minh"
     assert len(llm.calls) == 1
+
+
+def test_generate_script_re_asks_when_narration_is_too_short():
+    short = {**SCRIPT_PAYLOAD, "scenes": SCRIPT_PAYLOAD["scenes"][:1]}  # 10 words < 0.85 * 17
+    llm = FakeLLM([short, SCRIPT_PAYLOAD])
+    draft = generator.generate_script(
+        ContentSpec(topic="x", duration_seconds=4), "vi", make_config(), llm, need_characters=True
+    )
+    assert len(draft.scenes) == 2
+    assert len(llm.calls) == 2
+    assert "had 10 words" in llm.calls[1]["user"]
+
+
+def test_generate_script_re_asks_when_narration_is_too_long():
+    llm = FakeLLM([SCRIPT_PAYLOAD] * 3)  # 19 words > 1.2 * 13 (3s target)
+    generator.generate_script(
+        ContentSpec(topic="x", duration_seconds=3), "vi", make_config(), llm, need_characters=True
+    )
+    assert "fewer or shorter scenes" in llm.calls[1]["user"]
+
+
+def test_generate_script_keeps_longest_draft_when_always_short():
+    one = {**SCRIPT_PAYLOAD, "scenes": SCRIPT_PAYLOAD["scenes"][:1]}
+    llm = FakeLLM([one, one, one])
+    draft = generator.generate_script(
+        ContentSpec(topic="x", duration_seconds=10), "vi", make_config(), llm, need_characters=True
+    )
+    assert len(llm.calls) == generator.LENGTH_ATTEMPTS
+    assert generator.narration_words(draft) == 10
 
 
 def test_scenes_from_draft_ids_are_sequential():

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import unicodedata
 from collections.abc import Iterable
@@ -13,6 +14,14 @@ from anime_short.config import AppConfig
 from anime_short.schemas import Character, ContentSpec, Scene
 from anime_short.script import prompts
 from anime_short.script.llm import LLMClient
+
+log = logging.getLogger(__name__)
+
+# The LLM misses the word target (usually short, occasionally far over), which silently changes
+# the video length, so a script outside this range is sent back with its actual count.
+MIN_LENGTH_RATIO = 0.85
+MAX_LENGTH_RATIO = 1.2
+LENGTH_ATTEMPTS = 3
 
 
 class CharacterDraft(BaseModel):
@@ -61,7 +70,32 @@ def generate_script(
     est_scenes = max(4, round(content.duration_seconds / 8))
     max_tokens = 400 + 220 * est_scenes
     schema = _script_schema(need_characters)
-    return llm.complete_structured(system=system, user=user, schema=schema, max_tokens=max_tokens)
+    target = prompts.target_words(content, config)
+
+    best, best_words = None, 0
+    prompt = user
+    for _ in range(LENGTH_ATTEMPTS):
+        draft = llm.complete_structured(
+            system=system, user=prompt, schema=schema, max_tokens=max_tokens
+        )
+        words = narration_words(draft)
+        if best is None or abs(words - target) < abs(best_words - target):
+            best, best_words = draft, words
+        if MIN_LENGTH_RATIO * target <= words <= MAX_LENGTH_RATIO * target:
+            return draft
+        fix = "more scenes" if words < target else "fewer or shorter scenes"
+        prompt = (
+            f"{user}\n\nA previous attempt had {words} words of narration in total, but it must "
+            f"be about {target}. Write the complete script again with {fix} so the narration "
+            "matches the target length."
+        )
+    log.warning("script: best attempt has %d narration words, target %d", best_words, target)
+    assert best is not None
+    return best
+
+
+def narration_words(draft: ScriptDraft) -> int:
+    return sum(len(scene.narration.split()) for scene in draft.scenes)
 
 
 def _slugify_id(text: str) -> str:

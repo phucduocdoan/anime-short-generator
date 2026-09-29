@@ -89,7 +89,10 @@ All paths stored **relative to the project dir**.
   Pydantic; on invalid JSON retry up to 3 times with the validation error appended.
 - `script`: produces hook, scenes (narration in project language, visual_description in English),
   ending. Rules: narration and visual must not be literal restatements (v0 §4); total narration length
-  targets `duration_seconds` at ~2.7 Vietnamese words/second (configurable).
+  targets `duration_seconds` at ~4.2 Vietnamese words/second (configurable; measured VieNeu pace),
+  and re-asks the LLM (up to 2 more times) when the narration is outside 85–120% of that word target
+  (keeping the closest attempt). Scene count is derived from the word target (~13–20 words/scene),
+  since the LLM writes ~15 words per scene regardless of the requested length.
 - `plan`: per scene, 1–3 shots. Each shot has a `VisualSpec` (single frame, English), a
   `motion_prompt` (only subject/environment/camera motion, no appearance words), `camera`, and an
   estimated weight (relative duration). Characters are referenced by id; appearance text is **never**

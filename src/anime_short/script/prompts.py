@@ -28,16 +28,26 @@ def _character_list(characters: dict[str, Character]) -> str:
     return "\n".join(lines)
 
 
+WORDS_PER_SCENE_MIN = 13
+WORDS_PER_SCENE_MAX = 20
+
+
+def target_words(content: ContentSpec, config: AppConfig) -> int:
+    return round(content.duration_seconds * config.script.words_per_second)
+
+
 def script_system(
     content: ContentSpec, language: str, config: AppConfig, need_characters: bool
 ) -> str:
     words_per_second = config.script.words_per_second
-    target_words = round(content.duration_seconds * words_per_second)
+    target = target_words(content, config)
     hook_words = max(3, round(config.script.hook_seconds * words_per_second))
-    min_scenes = max(3, round(content.duration_seconds / 12))
-    max_scenes = max(min_scenes + 1, round(content.duration_seconds / 7))
+    # Scene count follows the word target: the LLM writes ~15 words per scene no matter how many
+    # it is asked for, so a long script needs more scenes rather than longer ones.
+    min_scenes = max(3, round(target / WORDS_PER_SCENE_MAX))
+    max_scenes = max(min_scenes + 1, round(target / WORDS_PER_SCENE_MIN))
     scene_hint = f"{min_scenes}-{max_scenes} scenes"
-    words_per_scene = round(target_words / ((min_scenes + max_scenes) / 2))
+    words_per_scene = round(target / ((min_scenes + max_scenes) / 2))
     character_instructions = (
         _load("script_characters.txt")
         if need_characters
@@ -47,7 +57,7 @@ def script_system(
         duration_seconds=content.duration_seconds,
         language_name=_language_name(language),
         hook_words=hook_words,
-        target_words=target_words,
+        target_words=target,
         words_per_second=words_per_second,
         words_per_scene=words_per_scene,
         scene_hint=scene_hint,

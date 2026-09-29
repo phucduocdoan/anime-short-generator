@@ -9,7 +9,7 @@ llm:
   timeout_seconds: 180
 
 script:
-  words_per_second: 2.7
+  words_per_second: 4.2       # measured VieNeu Vietnamese pace (~4.0-4.6 w/s per scene)
   hook_seconds: 3
   max_shots_per_scene: 3
 
