@@ -39,7 +39,6 @@ dependencies = [
     { name = "pyyaml" },
     { name = "rich" },
     { name = "typer" },
-    { name = "vieneu" },
 ]
 
 [package.optional-dependencies]
@@ -53,7 +52,9 @@ gpu = [
     { name = "safetensors" },
     { name = "sentencepiece" },
     { name = "torch" },
+    { name = "torchvision" },
     { name = "transformers" },
+    { name = "vieneu" },
 ]
 
 [package.dev-dependencies]
@@ -81,9 +82,10 @@ requires-dist = [
     { name = "safetensors", marker = "extra == 'gpu'" },
     { name = "sentencepiece", marker = "extra == 'gpu'" },
     { name = "torch", marker = "extra == 'gpu'", specifier = ">=2.5", index = "https://download.pytorch.org/whl/cu126" },
+    { name = "torchvision", marker = "extra == 'gpu'", specifier = ">=0.29.0", index = "https://download.pytorch.org/whl/cu126" },
     { name = "transformers", marker = "extra == 'gpu'", specifier = ">=4.51" },
     { name = "typer", specifier = ">=0.12" },
-    { name = "vieneu", specifier = ">=3.8.3" },
+    { name = "vieneu", marker = "extra == 'gpu'", specifier = ">=3.8.3" },
 ]
 provides-extras = ["gpu"]
 
@@ -1689,6 +1691,21 @@ wheels = [
     { url = "https://download-r2.pytorch.org/whl/cu126/torch-2.14.0%2Bcu126-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:b5723fa3dddd9cf548273eae0503ef9c47d0cce475edbf648ccab62224021fc7", upload-time = "2026-09-02T18:37:13Z" },
     { url = "https://download-r2.pytorch.org/whl/cu126/torch-2.14.0%2Bcu126-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:e9922441cb2ed269742a46246840c53634ca963f8b0a38d30182c28b4e8388da", upload-time = "2026-09-02T18:37:31Z" },
     { url = "https://download-r2.pytorch.org/whl/cu126/torch-2.14.0%2Bcu126-cp312-cp312-win_amd64.whl", hash = "sha256:11a492e40dfd18597fdb8271879a3a09496a23140deb81a6b5a005d9cff7312b", upload-time = "2026-09-02T18:38:19Z" },
+]
+
+[[package]]
+name = "torchvision"
+version = "0.29.0+cu126"
+source = { registry = "https://download.pytorch.org/whl/cu126" }
+dependencies = [
+    { name = "numpy" },
+    { name = "pillow" },
+    { name = "torch" },
+]
+wheels = [
+    { url = "https://download-r2.pytorch.org/whl/cu126/torchvision-0.29.0%2Bcu126-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:a4557ec86c5fc97b4d9f9477f20e2a387644701d05a1794c566621b2d413d807", upload-time = "2026-09-02T00:27:55Z" },
+    { url = "https://download-r2.pytorch.org/whl/cu126/torchvision-0.29.0%2Bcu126-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:ec7dffc3d1defeefda5e9b45c39d5346eb6a1fc753f11920ec8ae3866d0f436c", upload-time = "2026-09-02T00:27:55Z" },
+    { url = "https://download-r2.pytorch.org/whl/cu126/torchvision-0.29.0%2Bcu126-cp312-cp312-win_amd64.whl", hash = "sha256:31b3c9353f18d31a1140a332893c09bfd47ad1664af4fc956068a25c5107d2f6", upload-time = "2026-09-02T00:27:55Z" },
 ]
 
 [[package]]

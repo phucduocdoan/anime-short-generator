@@ -13,7 +13,6 @@ dependencies = [
     "python-dotenv>=1",
     "numpy>=1.26",
     "pillow>=10",
-    "vieneu>=3.8.3",
 ]
 
 [project.optional-dependencies]
@@ -28,6 +27,8 @@ gpu = [
     "safetensors",
     "huggingface_hub>=0.34",
     "ftfy",
+    "torchvision>=0.29.0",
+    "vieneu>=3.8.3",  # without its [cuda] extra, which pins torch==2.8
 ]
 
 [project.scripts]
@@ -35,6 +36,11 @@ anime-short = "anime_short.cli:app"
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.6"]
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
 
 [build-system]
 requires = ["hatchling"]
@@ -60,8 +66,4 @@ addopts = "-m 'not gpu and not network'"
 
 [tool.uv.sources]
 torch = { index = "pytorch-cu126" }
-
-[[tool.uv.index]]
-name = "pytorch-cu126"
-url = "https://download.pytorch.org/whl/cu126"
-explicit = true
+torchvision = { index = "pytorch-cu126" }
