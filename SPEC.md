@@ -19,7 +19,10 @@ MVP scope: 1 narrator, ≤ 2 recurring characters, 30–60 s, 2.5–5 s per shot
 - Local LLM: OpenAI-compatible vLLM at `http://localhost:8093/v1`, model `qwen3-vl-8b`, max context 8192.
 - No ElevenLabs API key is present on this machine. ElevenLabs code must work when a key is set, but
   local end-to-end runs use the local TTS provider.
-- FFmpeg 6.1.1 available. Python via `uv` (project venv `.venv`, Python 3.12).
+- FFmpeg: the `ffmpeg` on PATH (miniconda 6.1.1) lacks libx264 and libass. Use the full static
+  build via `.env`: `ANIME_SHORT_FFMPEG` / `ANIME_SHORT_FFPROBE` (here `/home/ding/ffmpeg-7.0.2-amd64-static/`).
+  All code must go through `utils.media` (`run_ffmpeg`, `ffmpeg_bin()`, `ffprobe`), never a literal "ffmpeg".
+- Python via `uv` (project venv `.venv`, Python 3.12).
 - Disk is ~90 % full (~390 GB free). Download only the model files actually needed.
 
 ## 2. Pipeline
