@@ -133,6 +133,7 @@ def run_timeline(
     for idx, scene in enumerate(project.scenes):
         if scene.audio is None:
             raise ValueError(f"{scene.id}: run the tts stage before timeline")
+        old_durations = {shot.id: shot.duration for shot in scene.shots}
         durations = resolve_scene(project, scene, config)
         is_last = idx == len(project.scenes) - 1
         durations[-1] += tail_seconds if is_last else gap_seconds
@@ -140,6 +141,8 @@ def run_timeline(
         scene.start = cursor
         shot_cursor = cursor
         for shot, duration in zip(scene.shots, durations, strict=True):
+            if old_durations.get(shot.id) != duration:
+                shot.video = None  # clip length no longer matches; regenerate it
             shot.start = shot_cursor
             shot.duration = duration
             shot_cursor += duration

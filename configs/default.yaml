@@ -61,7 +61,7 @@ video:
     cfg: 1.0
     native_fps: 16
     max_frames: 81
-    min_free_vram_gb: 24
+    min_free_vram_gb: 24        # measured peak ~20.9GB reserved at 480x832/81 frames (5s, worst case); +margin
   still_motion:
     oversample: 1.4           # source is rendered this much larger than output before cropping
                               # (1.25 = 864*1.25=1080, 1536*1.25=1920: exactly output size, no pan margin)

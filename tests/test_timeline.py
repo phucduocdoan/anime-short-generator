@@ -232,3 +232,20 @@ def test_run_timeline_requires_audio(config, tmp_path):
     project = ProjectSpec(id="p", title="t", content=ContentSpec(topic="t"), scenes=[scene])
     with pytest.raises(ValueError):
         run_timeline(project, tmp_path, config)
+
+
+def test_run_timeline_force_clears_clip_only_when_duration_changes(config, tmp_path):
+    from anime_short.schemas import VideoInfo, VideoMode
+
+    scene = make_scene("scene_01", duration=4.0, n_shots=1)
+    project = ProjectSpec(id="p", title="t", content=ContentSpec(topic="t"), scenes=[scene])
+    run_timeline(project, tmp_path, config)
+    shot = project.scenes[0].shots[0]
+    shot.video = VideoInfo(path="clips/x.mp4", mode=VideoMode.i2v, provider="animegen")
+
+    run_timeline(project, tmp_path, config, force=True)
+    assert shot.video is not None, "same duration: clip is still valid"
+
+    scene.audio.duration = 3.0
+    run_timeline(project, tmp_path, config, force=True)
+    assert shot.video is None
