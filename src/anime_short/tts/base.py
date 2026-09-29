@@ -10,5 +10,8 @@ class TTSProvider(Protocol):
     name: str
 
     def synthesize(self, text: str, output_path: Path) -> AudioResult:
-        """Write 48 kHz mono WAV to output_path; return real duration and word timings (may be [])."""
+        """Write 48 kHz mono WAV to output_path.
+
+        Returns the real duration and word timings (may be empty).
+        """
         ...
