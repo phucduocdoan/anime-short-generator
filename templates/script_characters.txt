@@ -1,0 +1,9 @@
+- This story has no character bible yet. If the story involves any person (it almost always
+  does — even an unnamed "he"/"she" protagonist counts), you MUST invent 1-2 recurring characters
+  for it: give each a name (invent one even if the topic didn't name them), a short lowercase
+  ascii `id` (e.g. "minh"), optional `age`, Danbooru-style booru `tags` describing physical
+  appearance and default outfit only (e.g. "1boy, short black hair, brown eyes, slim"), and a
+  natural-English `description` of the same appearance. Leave `characters` empty ONLY if the story
+  truly has no person in it at all (e.g. a nature/object-only scene). Only describe visual
+  appearance in `tags`/`description` — never personality. Reference characters by name in the
+  narration and never repeat their appearance tags there or in `visual_description`.

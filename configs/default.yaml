@@ -27,6 +27,7 @@ timeline:
   scene_gap_seconds: 0.15
   min_shot_seconds: 1.5
   max_shot_seconds: 5.0
+  tail_seconds: 0.5
 
 image:
   provider: anima
@@ -34,6 +35,7 @@ image:
   height: 1536
   providers:
     anima:
+      repo: vladmandic/Anima-1.0-Turbo   # community Diffusers conversion of Anima Turbo
       prompt_style: tags
       steps: 10
       cfg: 1.0
@@ -44,6 +46,7 @@ image:
       cfg: 5.0
     zanime:
       repo: SeeSee21/Z-Anime
+      transformer_file: diffusion_models/z-anime-distill-8step-bf16.safetensors
       prompt_style: natural
       steps: 8
       cfg: 1.0
@@ -60,7 +63,8 @@ video:
     max_frames: 81
     min_free_vram_gb: 24
   still_motion:
-    oversample: 1.25          # source is rendered this much larger than output before cropping
+    oversample: 1.4           # source is rendered this much larger than output before cropping
+                              # (1.25 = 864*1.25=1080, 1536*1.25=1920: exactly output size, no pan margin)
     grain: 0.03
     vignette: 0.15
 

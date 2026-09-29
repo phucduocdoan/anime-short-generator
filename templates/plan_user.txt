@@ -1,0 +1,5 @@
+Scene narration ({language_name}): {narration}
+Scene visual idea (from the script stage): {visual_description}
+Scene emotion: {emotion}
+
+Produce the shot breakdown now.

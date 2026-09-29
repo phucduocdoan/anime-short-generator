@@ -49,6 +49,7 @@ class TimelineConfig(BaseModel):
     scene_gap_seconds: float = 0.15
     min_shot_seconds: float = 1.5
     max_shot_seconds: float = 5.0
+    tail_seconds: float = 0.5
 
 
 class ImageConfig(BaseModel):
