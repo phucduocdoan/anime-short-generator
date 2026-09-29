@@ -29,9 +29,9 @@ def test_spec_to_project_example():
 
 def test_spec_to_overrides_example_is_valid_config():
     overrides = runner.spec_to_overrides(load_yaml(EXAMPLE))
-    assert overrides["image"] == {"provider": "anima"}
+    assert overrides["image"] == {"provider": "zanime"}
     config = load_config(overrides)
-    assert config.image.provider == "anima"
+    assert config.image.provider == "zanime"
     assert config.music.enabled is False
 
 

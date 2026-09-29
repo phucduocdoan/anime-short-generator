@@ -24,7 +24,7 @@ voice:
   speed: 1.0
 
 visual:
-  provider: anima
+  provider: zanime
   style: cinematic_anime
 
 video:

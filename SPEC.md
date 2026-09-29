@@ -110,8 +110,10 @@ Providers (all via Diffusers, bf16):
 | `netayume` | `duongve/NetaYume-Lumina-Image-2.0-Diffusers-v40` (Lumina2Pipeline) | tags   | 40 steps, CFG 5           | Apache-2.0 |
 | `zanime`   | `SeeSee21/Z-Anime` distill-8-step (ZImagePipeline)              | natural      | 8 steps, CFG 1.0          | Apache-2.0 |
 
-Default provider: `anima` (dev). The monetized channel must switch to an Apache provider after the
-comparison benchmark (`scripts/bench_images.py`, same prompts × 3 providers → contact sheet).
+Default provider: `zanime` (Apache 2.0, chosen by the user from the benchmark contact sheet for its
+character consistency across shots). `anima` stays available for non-commercial dev work only.
+Benchmark (`scripts/bench_images.py`, 4 prompts, 864×1536, H100): anima 2.6 s/img, 10.6 GB peak;
+netayume 14.7 s/img, 12.9 GB; zanime 7.5 s/img, 22.3 GB.
 
 Keyframe size: 864×1536 (exact 9:16, multiple of 16) unless the provider needs otherwise.
 

@@ -30,7 +30,7 @@ timeline:
   tail_seconds: 0.5
 
 image:
-  provider: anima
+  provider: zanime
   width: 864
   height: 1536
   providers:
