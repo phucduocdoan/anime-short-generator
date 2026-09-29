@@ -8,6 +8,8 @@ depending on the provider's `prompt_style`.
 
 from __future__ import annotations
 
+import re
+
 from anime_short.config import StyleBible
 from anime_short.schemas import Character, PromptStyle, Shot
 
@@ -35,6 +37,13 @@ _HUMAN_HINTS = {
     "crowd",
     "hand",
     "hands",
+    "finger",
+    "fingers",
+    "fingertip",
+    "fingertips",
+    "arm",
+    "arms",
+    "palm",
     "face",
     "stranger",
     "passenger",
@@ -69,7 +78,7 @@ def _visual_text(shot: Shot) -> str:
 
 
 def _implies_humans(shot: Shot) -> bool:
-    words = set(_visual_text(shot).lower().replace(",", " ").split())
+    words = set(re.findall(r"[a-z]+", _visual_text(shot).lower()))
     return bool(words & _HUMAN_HINTS)
 
 
@@ -127,7 +136,10 @@ def _build_natural(
 
     v = shot.visual
     if v.shot_type:
-        sentences.append(f"{v.shot_type.capitalize()} shot.")
+        shot_type = v.shot_type.strip().rstrip(".")
+        if not shot_type.lower().endswith("shot"):
+            shot_type += " shot"
+        sentences.append(f"{shot_type.capitalize()}.")
     subject_line = v.subject
     if v.action:
         subject_line = f"{subject_line}, {v.action}" if subject_line else v.action

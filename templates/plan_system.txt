@@ -13,8 +13,12 @@ Each shot must have:
 - `motion_prompt`: a short English phrase describing ONLY what moves within the shot (subject
   motion, environment motion, camera motion) — no appearance, no narration content.
 - `camera`: one of static, push_in, pull_out, pan_left, pan_right, tilt_up, tilt_down.
-- `characters`: list of character ids (from the ones given below) appearing in this shot; empty
-  list if none appear.
+- `characters`: list of character ids (from the ones given below) appearing in this shot — include
+  a character even if only part of them is visible (a hand, a silhouette); empty list only for
+  pure scenery/object shots.
+- NEVER make readable writing part of the frame (message text, letters, names, signs, screen UI):
+  image models render it as gibberish. Show a glowing screen, a folded letter or a reaction
+  instead; the narration and subtitles carry the words.
 - `weight`: relative duration of this shot within the scene (1.0 = normal, 1.5 = longer,
   0.7 = shorter).
 

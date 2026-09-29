@@ -125,6 +125,20 @@ def test_natural_no_characters_states_no_people():
     assert "no people" in prompt.lower()
 
 
+def test_natural_body_part_is_not_called_no_people():
+    visual = VisualSpec(subject="Fingers hovering over a phone's screen", shot_type="close-up")
+    prompt, _ = build(make_shot(characters=[], visual=visual), {}, STYLE, PromptStyle.natural)
+    assert "no people" not in prompt.lower()
+    assert "Close-up shot." in prompt
+
+
+def test_natural_shot_type_already_ending_in_shot_is_not_doubled():
+    visual = VisualSpec(subject="an empty street", shot_type="wide shot")
+    prompt, _ = build(make_shot(characters=[], visual=visual), {}, STYLE, PromptStyle.natural)
+    assert "Wide shot." in prompt
+    assert "shot shot" not in prompt.lower()
+
+
 # --- deterministic_seed ---------------------------------------------------------------------
 
 
