@@ -16,6 +16,26 @@ from anime_short.schemas import Character, PromptStyle, Shot
 _FRAMING_TAGS = ["9:16 aspect ratio"]
 _FRAMING_NATURAL = "9:16 aspect ratio."
 
+# Image models fill signs with invented (often Chinese or gibberish) lettering unless told not
+# to; asking for pictograms works better than only forbidding letters.
+_SIGN_HINTS = {
+    "neon",
+    "sign",
+    "signs",
+    "signage",
+    "billboard",
+    "billboards",
+    "poster",
+    "posters",
+    "storefront",
+    "storefronts",
+}
+_NO_SIGN_TEXT = (
+    "Every neon sign and shop sign is a simple glowing pictogram or abstract shape (a coffee cup, "
+    "a star, stripes); signs never contain letters, numbers or characters of any language. Apart "
+    "from any writing explicitly requested above, there is no text anywhere in the image."
+)
+
 _VISUAL_FIELDS = ("setting", "lighting", "shot_type", "subject", "action", "mood", "extra")
 
 # Heuristic only: if a shot has no characters and none of these appear in the visual fields,
@@ -80,6 +100,11 @@ def _visual_text(shot: Shot) -> str:
 def _implies_humans(shot: Shot) -> bool:
     words = set(re.findall(r"[a-z]+", _visual_text(shot).lower()))
     return bool(words & _HUMAN_HINTS)
+
+
+def _mentions_signs(shot: Shot) -> bool:
+    words = set(re.findall(r"[a-z]+", _visual_text(shot).lower()))
+    return bool(words & _SIGN_HINTS)
 
 
 def _split_to_tags(text: str) -> list[str]:
@@ -159,6 +184,9 @@ def _build_natural(
         sentences.append(f'The only writing in the image is the English text "{v.text}".')
 
     sentences.append(_FRAMING_NATURAL)
+    # Last, where the models follow it best (placed mid-prompt, Gemini still lettered the signs).
+    if _mentions_signs(shot):
+        sentences.append(_NO_SIGN_TEXT)
 
     prompt = " ".join(s for s in sentences if s)
     negative = style.negative_natural.strip()

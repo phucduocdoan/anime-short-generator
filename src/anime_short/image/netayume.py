@@ -13,6 +13,7 @@ from anime_short.schemas import ImageResult, PromptStyle
 class NetaYumeGenerator:
     name = "netayume"
     prompt_style = PromptStyle.tags
+    supports_reference = False
 
     def __init__(self, options: dict[str, Any]) -> None:
         self.repo = options.get("repo", "duongve/NetaYume-Lumina-Image-2.0-Diffusers-v40")
@@ -38,6 +39,7 @@ class NetaYumeGenerator:
         height: int,
         seed: int,
         output_path: Path,
+        reference_image: Path | None = None,  # unsupported, ignored
     ) -> ImageResult:
         import torch
 

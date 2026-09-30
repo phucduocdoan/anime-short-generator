@@ -50,6 +50,10 @@ image:
       prompt_style: natural
       steps: 8
       cfg: 1.0
+    gemini:
+      model: gemini-3-pro-image   # Google API; needs GEMINI_API_KEY, ~25 s/img
+      image_size: 2K              # API output size; the result is resized to width x height
+      api_key_env: GEMINI_API_KEY
 
 video:
   provider: animegen          # falls back to still_motion when VRAM gate fails

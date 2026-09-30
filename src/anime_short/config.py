@@ -118,6 +118,8 @@ class StyleBible(BaseModel):
     negative_tags: str
     negative_natural: str
     camera_preferences: list[str] = []
+    # Optional style image, relative to configs/styles/; used only by providers that support it.
+    reference_image: str | None = None
 
 
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

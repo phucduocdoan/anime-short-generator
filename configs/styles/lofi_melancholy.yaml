@@ -4,13 +4,13 @@ positive_tags: >-
   teal and moss green shadows, warm orange light, golden light, thin lineart, paper texture,
   film grain, melancholic, quiet mood, detailed background
 positive_natural: >-
-  A melancholic lo-fi anime illustration that looks hand-painted with gouache: flat areas of
-  color, a limited palette of deep teal and moss-green shadows against warm orange and
-  golden-yellow light, thin dark ink line art, visible paper texture and fine grain, a quiet
-  and contemplative mood.
+  A delicate hand-drawn lo-fi illustration: thin ink line art, flat painted colors, a limited
+  palette of deep teal and moss-green shadows against warm orange and golden light, fine grain,
+  a quiet melancholic mood. Not photorealistic, no 3D.
 negative_tags: >-
   worst quality, low quality, lowres, bad anatomy, bad hands, extra fingers, missing fingers,
   text, watermark, signature, logo, blurry, jpeg artifacts, 3d, glossy
 negative_natural: >-
   low quality, deformed hands, extra fingers, distorted face, text, watermark, blurry, glossy 3d
 camera_preferences: [close-up, medium shot, wide shot]
+reference_image: refs/lofi_melancholy.png

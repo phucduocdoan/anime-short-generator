@@ -31,6 +31,7 @@ from anime_short.schemas import ImageResult, PromptStyle
 class ZAnimeGenerator:
     name = "zanime"
     prompt_style = PromptStyle.natural
+    supports_reference = False
 
     def __init__(self, options: dict[str, Any]) -> None:
         self.repo = options.get("repo", "SeeSee21/Z-Anime")
@@ -97,6 +98,7 @@ class ZAnimeGenerator:
         height: int,
         seed: int,
         output_path: Path,
+        reference_image: Path | None = None,  # unsupported, ignored
     ) -> ImageResult:
         import torch
 

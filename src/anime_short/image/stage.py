@@ -6,7 +6,7 @@ import hashlib
 import logging
 from pathlib import Path
 
-from anime_short.config import AppConfig, load_style
+from anime_short.config import CONFIG_DIR, AppConfig, load_style
 from anime_short.image import get_image_generator
 from anime_short.image.prompt_builder import build as build_prompt
 from anime_short.pipeline.state import save_project
@@ -27,6 +27,18 @@ def run_images(
 ) -> None:
     style = load_style(project.style)
     generator = get_image_generator(config)
+    reference_image = None
+    if style.reference_image:
+        if generator.supports_reference:
+            reference_image = CONFIG_DIR / "styles" / style.reference_image
+            if not reference_image.is_file():
+                raise FileNotFoundError(f"style reference image not found: {reference_image}")
+        else:
+            log.warning(
+                "style %s has a reference image, but provider %s cannot use it",
+                style.name,
+                generator.name,
+            )
     images_dir = project_dir / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
 
@@ -53,6 +65,7 @@ def run_images(
                     height=config.image.height,
                     seed=seed,
                     output_path=output_path,
+                    reference_image=reference_image,
                 )
 
                 shot.image = ImageInfo(

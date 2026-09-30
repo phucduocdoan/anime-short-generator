@@ -106,15 +106,22 @@ All paths stored **relative to the project dir**.
 ## 6. Images
 
 `ImageGenerator` protocol (`image/base.py`): `load()`, `unload()`,
-`generate(prompt, negative_prompt, width, height, seed, output_path) -> ImageResult`.
+`generate(prompt, negative_prompt, width, height, seed, output_path, reference_image=None) -> ImageResult`.
+`supports_reference` says whether a provider uses `reference_image`: the style's optional
+`reference_image` (path relative to `configs/styles/`), a style image whose drawing style the model
+copies. Only `gemini` supports it; for other providers the stage logs a warning and ignores it.
 
-Providers (all via Diffusers, bf16):
+Providers (local ones via Diffusers, bf16):
 
 | provider   | weights                                                        | prompt style | defaults                  | license note |
 |------------|----------------------------------------------------------------|--------------|---------------------------|--------------|
 | `anima`    | circlestone-labs Anima (Turbo, CFG 1, 8–12 steps)              | tags         | 10 steps, CFG 1.0         | non-commercial — dev only |
 | `netayume` | `duongve/NetaYume-Lumina-Image-2.0-Diffusers-v40` (Lumina2Pipeline) | tags   | 40 steps, CFG 5           | Apache-2.0 |
 | `zanime`   | `SeeSee21/Z-Anime` distill-8-step (ZImagePipeline)              | natural      | 8 steps, CFG 1.0          | Apache-2.0 |
+| `gemini`   | Google `gemini-3-pro-image` API (`GEMINI_API_KEY`)             | natural      | 2K output, ~25 s/img      | paid API, Google terms |
+
+`gemini` has no negative prompt (ignored). Its output (JPEG, not exactly 9:16 at 2K) is
+center-cropped and resized to the keyframe size and saved as PNG; 429/5xx are retried with backoff.
 
 Default provider: `zanime` (Apache 2.0, chosen by the user from the benchmark contact sheet for its
 character consistency across shots). `anima` stays available for non-commercial dev work only.
@@ -132,7 +139,9 @@ that mention writing (text, words, letters, caption, overlay, timestamp), since 
 keeps writing them despite the prompt.
 `prompt_builder.build(shot, characters, style, prompt_style) -> (prompt, negative)`:
 - `tags` style: comma-separated lowercase tags, quality prefix, character `tags`, style tags.
-- `natural` style: fluent English sentences, character `description`, style natural text.
+- `natural` style: fluent English sentences, character `description`, style natural text. When
+  the visual fields mention neon/signs/billboards/posters/storefronts, a final sentence asks for
+  pictogram signs without letters (models otherwise letter them in invented scripts).
 Character bible entries have both `tags` and `description`.
 
 Seeds: deterministic per shot (hash of project id + shot id) unless set.
@@ -150,7 +159,7 @@ Seeds: deterministic per shot (hash of project id + shot id) unless set.
    graphics stay exactly the same and do not change` (CFG 1 ignores the negative prompt).
    **VRAM gate:** before loading, if free VRAM < `video.animegen.min_free_vram_gb`, do not load;
    the stage falls back to `still_motion` for all shots and logs why.
-   Shots with `visual.text`, or close-ups whose visual mentions a screen, always use `still_motion`:
+   Shots with `visual.text`, or a screen in a close-up or in the foreground, always use `still_motion`:
    i2v rewrites screens and writing into gibberish.
    Postprocess: trim to duration, 16→project fps, lanczos upscale to 1080×1920.
 2. `still_motion` (fallback, CPU only, must look alive, not a slideshow):

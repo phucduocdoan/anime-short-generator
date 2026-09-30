@@ -37,12 +37,14 @@ def _needs_generation(shot: Shot, project_dir: Path, force: bool) -> bool:
 
 
 def _keeps_keyframe(shot: Shot) -> bool:
-    """Shots with on-screen text, or close-ups of a screen, are animated with still_motion: i2v
-    rewrites screens and writing into gibberish even when the prompt says they stay unchanged
-    (checked on real clips). A screen held in a wider shot is too small to matter."""
+    """Shots with on-screen text, or a screen in a close-up or in the foreground, are animated
+    with still_motion: i2v rewrites screens and writing into gibberish even when the prompt says
+    they stay unchanged (checked on real clips). A screen held in the background of a wider shot
+    is too small to matter."""
     v = shot.visual
     described = " ".join((v.subject, v.action, v.setting, v.extra)).lower()
-    return bool(v.text) or ("close-up" in v.shot_type.lower() and "screen" in described)
+    large_screen = "close-up" in v.shot_type.lower() or "foreground" in described
+    return bool(v.text) or ("screen" in described and large_screen)
 
 
 def _run_shots(

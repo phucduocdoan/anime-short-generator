@@ -9,6 +9,7 @@ from anime_short.schemas import ImageResult, PromptStyle
 class ImageGenerator(Protocol):
     name: str
     prompt_style: PromptStyle
+    supports_reference: bool  # whether `generate` uses `reference_image` (a style image)
 
     def load(self) -> None: ...
 
@@ -22,4 +23,5 @@ class ImageGenerator(Protocol):
         height: int,
         seed: int,
         output_path: Path,
+        reference_image: Path | None = None,
     ) -> ImageResult: ...

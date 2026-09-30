@@ -4,10 +4,18 @@ stage skip/force behaviour against a fake `ImageGenerator` (no GPU/network).
 
 from __future__ import annotations
 
+import base64
+import io
+import json
 from pathlib import Path
+
+import httpx
+import pytest
+from PIL import Image
 
 from anime_short.config import AppConfig, ImageConfig, LLMConfig, StyleBible, TTSConfig, VideoConfig
 from anime_short.image import stage as stage_mod
+from anime_short.image.gemini import GeminiGenerator
 from anime_short.image.prompt_builder import build
 from anime_short.image.stage import deterministic_seed, run_images
 from anime_short.schemas import (
@@ -151,6 +159,16 @@ def test_shot_text_is_rendered_as_exact_english_words():
     assert "text" not in natural.lower()
 
 
+def test_natural_sign_shot_forbids_sign_lettering():
+    visual = VisualSpec(subject="a rainy alley", lighting="damp neon glow")
+    prompt, _ = build(make_shot(characters=[], visual=visual), {}, STYLE, PromptStyle.natural)
+    assert "signs never contain letters" in prompt
+
+    plain = VisualSpec(subject="a quiet bedroom", lighting="soft lamp light")
+    prompt, _ = build(make_shot(characters=[], visual=plain), {}, STYLE, PromptStyle.natural)
+    assert "letters" not in prompt
+
+
 # --- deterministic_seed ---------------------------------------------------------------------
 
 
@@ -169,10 +187,12 @@ def test_deterministic_seed_stable_and_distinct():
 class FakeGenerator:
     name = "fake"
     prompt_style = PromptStyle.tags
+    supports_reference = False
 
     def __init__(self):
         self.loaded = False
         self.calls = 0
+        self.reference_images = []
 
     def load(self):
         self.loaded = True
@@ -180,8 +200,11 @@ class FakeGenerator:
     def unload(self):
         self.loaded = False
 
-    def generate(self, prompt, negative_prompt, width, height, seed, output_path):
+    def generate(
+        self, prompt, negative_prompt, width, height, seed, output_path, reference_image=None
+    ):
         self.calls += 1
+        self.reference_images.append(reference_image)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_bytes(b"fake-png")
         return ImageResult(path=output_path, seed=seed, width=width, height=height)
@@ -244,3 +267,119 @@ def test_run_images_uses_deterministic_seed_when_shot_seed_unset(tmp_path: Path,
 
     shot = project.scenes[0].shots[0]
     assert shot.image.seed == deterministic_seed("proj_1", "scene_01_a")
+
+
+def test_run_images_passes_style_reference_only_to_supporting_providers(
+    tmp_path: Path, monkeypatch
+):
+    ref = tmp_path / "styles" / "refs" / "look.png"
+    ref.parent.mkdir(parents=True)
+    Image.new("RGB", (8, 8)).save(ref)
+    styled = STYLE.model_copy(update={"reference_image": "refs/look.png"})
+    monkeypatch.setattr(stage_mod, "load_style", lambda name: styled)
+    monkeypatch.setattr(stage_mod, "CONFIG_DIR", tmp_path)
+
+    fake = FakeGenerator()
+    monkeypatch.setattr(stage_mod, "get_image_generator", lambda config: fake)
+    run_images(make_project(), tmp_path, make_config())
+    assert fake.reference_images == [None]
+
+    fake = FakeGenerator()
+    fake.supports_reference = True
+    monkeypatch.setattr(stage_mod, "get_image_generator", lambda config: fake)
+    run_images(make_project(), tmp_path, make_config())
+    assert fake.reference_images == [ref]
+
+
+# --- gemini.py ---------------------------------------------------------------------------
+
+
+def _jpeg_bytes(size: tuple[int, int]) -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGB", size, "orange").save(buf, format="JPEG")  # the API returns JPEG
+    return buf.getvalue()
+
+
+def _image_response(size: tuple[int, int]) -> httpx.Response:
+    data = base64.b64encode(_jpeg_bytes(size)).decode()
+    body = {"candidates": [{"content": {"parts": [{"inlineData": {"data": data}}]}}]}
+    return httpx.Response(200, json=body)
+
+
+def _gemini(handler) -> GeminiGenerator:
+    client = httpx.Client(base_url="https://gemini.test", transport=httpx.MockTransport(handler))
+    return GeminiGenerator({"retry_backoff_seconds": 0}, client=client)
+
+
+def test_gemini_sends_reference_and_saves_resized_png(tmp_path: Path):
+    ref = tmp_path / "ref.png"
+    Image.new("RGB", (8, 8)).save(ref)
+    requests = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return _image_response((1536, 2752))
+
+    out = tmp_path / "shot.png"
+    result = _gemini(handler).generate("A girl.", "blurry", 864, 1536, 7, out, reference_image=ref)
+
+    payload = json.loads(requests[0].content)
+    assert requests[0].url.path == "/v1beta/models/gemini-3-pro-image:generateContent"
+    ref_part, text_part = payload["contents"][0]["parts"]
+    assert ref_part["inline_data"]["mime_type"] == "image/png"
+    assert base64.b64decode(ref_part["inline_data"]["data"]) == ref.read_bytes()
+    assert text_part["text"].startswith("Use the attached image only as a style reference")
+    assert text_part["text"].endswith("A girl.")
+    config = payload["generationConfig"]
+    assert config["imageConfig"] == {"aspectRatio": "9:16", "imageSize": "2K"}
+    assert config["seed"] == 7
+
+    with Image.open(out) as saved:
+        assert saved.format == "PNG"
+        assert saved.size == (864, 1536)
+    assert (result.width, result.height) == (864, 1536)
+
+
+def test_gemini_without_reference_sends_prompt_only(tmp_path: Path):
+    payloads = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payloads.append(json.loads(request.content))
+        return _image_response((768, 1376))
+
+    _gemini(handler).generate("A street.", None, 864, 1536, 3260955075, tmp_path / "s.png")
+    assert payloads[0]["contents"][0]["parts"] == [{"text": "A street."}]
+    assert payloads[0]["generationConfig"]["seed"] < 2**31  # the API rejects non-int32 seeds
+
+
+def test_gemini_retries_rate_limit_then_succeeds(tmp_path: Path):
+    codes = [429, 503, 200]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        code = codes.pop(0)
+        if code != 200:
+            return httpx.Response(code, json={"error": "busy"})
+        return _image_response((64, 112))
+
+    _gemini(handler).generate("x", None, 864, 1536, 1, tmp_path / "s.png")
+    assert codes == []
+
+
+def test_gemini_no_image_raises_with_reason(tmp_path: Path):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"candidates": [{"finishReason": "IMAGE_SAFETY"}]})
+
+    with pytest.raises(RuntimeError, match="IMAGE_SAFETY"):
+        _gemini(handler).generate("x", None, 864, 1536, 1, tmp_path / "s.png")
+
+
+def test_gemini_client_error_is_not_retried(tmp_path: Path):
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        return httpx.Response(400, json={"error": "bad request"})
+
+    with pytest.raises(RuntimeError, match="gemini 400"):
+        _gemini(handler).generate("x", None, 864, 1536, 1, tmp_path / "s.png")
+    assert len(calls) == 1

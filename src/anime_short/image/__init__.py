@@ -5,11 +5,13 @@ from __future__ import annotations
 from anime_short.config import AppConfig
 from anime_short.image.anima import AnimaGenerator
 from anime_short.image.base import ImageGenerator
+from anime_short.image.gemini import GeminiGenerator
 from anime_short.image.netayume import NetaYumeGenerator
 from anime_short.image.zanime import ZAnimeGenerator
 
 _GENERATORS = {
     "anima": AnimaGenerator,
+    "gemini": GeminiGenerator,
     "netayume": NetaYumeGenerator,
     "zanime": ZAnimeGenerator,
 }

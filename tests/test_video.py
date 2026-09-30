@@ -273,18 +273,30 @@ def test_run_videos_keeps_text_shots_on_still_motion(tmp_path: Path, monkeypatch
         id="scene_01_d",
         visual=VisualSpec(subject="minh", shot_type="medium shot", extra="phone screen glowing"),
     )
+    foreground_screen = make_shot(
+        id="scene_01_e",
+        visual=VisualSpec(
+            subject="minh", shot_type="medium shot", setting="phone screen in foreground"
+        ),
+    )
     project = make_project()
-    project.scenes[0].shots += [text_shot, screen_close_up, held_phone]
+    project.scenes[0].shots += [text_shot, screen_close_up, held_phone, foreground_screen]
     _prep_project_image(tmp_path, project)
 
     run_videos(project, tmp_path, make_config(provider="animegen"))
 
     modes = [shot.video.mode for shot in project.scenes[0].shots]
-    assert modes == [VideoMode.i2v, VideoMode.still_motion, VideoMode.still_motion, VideoMode.i2v]
-    assert (i2v.calls, still.calls, len(sessions)) == (2, 2, 1)
+    assert modes == [
+        VideoMode.i2v,
+        VideoMode.still_motion,
+        VideoMode.still_motion,
+        VideoMode.i2v,
+        VideoMode.still_motion,
+    ]
+    assert (i2v.calls, still.calls, len(sessions)) == (2, 3, 1)
 
     run_videos(project, tmp_path, make_config(provider="animegen"))  # all done: no model load
-    assert (i2v.calls, still.calls, len(sessions)) == (2, 2, 1)
+    assert (i2v.calls, still.calls, len(sessions)) == (2, 3, 1)
 
     run_videos(project, tmp_path, make_config(provider="animegen"), force=True)
-    assert (i2v.calls, still.calls, len(sessions)) == (4, 4, 2)
+    assert (i2v.calls, still.calls, len(sessions)) == (4, 6, 2)
