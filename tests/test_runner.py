@@ -104,13 +104,15 @@ def test_cli_lists_all_commands():
         assert command in result.output
 
 
-def test_forcing_a_stage_resets_later_stages(workspace_config, monkeypatch):
+@pytest.mark.parametrize("force", [True, False])
+def test_running_a_stage_resets_later_stages(workspace_config, monkeypatch, force):
+    # Without --force a stage still regenerates invalidated items, so later stages must rerun.
     project, project_dir = runner.create_project({"content": {"topic": "t"}}, workspace_config)
     for stage in STAGES:
         project.stages[stage] = StageStatus.done
     monkeypatch.setattr(runner, "stage_function", lambda stage: lambda *a: None)
 
-    runner.run_stage(project, project_dir, workspace_config, "tts", force=True)
+    runner.run_stage(project, project_dir, workspace_config, "tts", force=force)
 
     stages = load_project(project_dir).stages
     assert stages["plan"] == StageStatus.done

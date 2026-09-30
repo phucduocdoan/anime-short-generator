@@ -28,14 +28,21 @@ def _is_oom(exc: BaseException) -> bool:
     return "out of memory" in str(exc).lower()
 
 
-def _needs_generation(shot: Shot) -> bool:
-    return shot.image is not None and shot.duration is not None
+def _needs_generation(shot: Shot, project_dir: Path, force: bool) -> bool:
+    if shot.image is None or shot.duration is None:
+        return False
+    # State-backed skip: images/timeline clear `shot.video` when the clip goes stale.
+    done = shot.video is not None and (project_dir / shot.video.path).exists()
+    return force or not done
 
 
 def _keeps_keyframe(shot: Shot) -> bool:
-    """Shots with on-screen text are animated with still_motion: i2v rewrites screens and writing
-    into gibberish even when the prompt says they stay unchanged (checked on real clips)."""
-    return bool(shot.visual.text)
+    """Shots with on-screen text, or close-ups of a screen, are animated with still_motion: i2v
+    rewrites screens and writing into gibberish even when the prompt says they stay unchanged
+    (checked on real clips). A screen held in a wider shot is too small to matter."""
+    v = shot.visual
+    described = " ".join((v.subject, v.action, v.setting, v.extra)).lower()
+    return bool(v.text) or ("close-up" in v.shot_type.lower() and "screen" in described)
 
 
 def _run_shots(
@@ -52,13 +59,9 @@ def _run_shots(
 
     for scene in project.scenes:
         for shot in scene.shots:
-            if not _needs_generation(shot) or not select(shot):
+            if not _needs_generation(shot, project_dir, force) or not select(shot):
                 continue
             out_path = clips_dir / f"{shot.id}.mp4"
-            # State-backed skip: images/timeline clear `shot.video` when the clip goes stale.
-            done = shot.video is not None and (project_dir / shot.video.path).exists()
-            if done and not force:
-                continue
 
             log.info("videos: %s (%s, %s, %.2fs)", shot.id, provider, shot.camera, shot.duration)
             assert shot.image is not None and shot.duration is not None
@@ -82,9 +85,11 @@ def run_videos(
     i2v_ok = False
 
     if provider == "animegen" and not any(
-        _needs_generation(s) and not _keeps_keyframe(s) for sc in project.scenes for s in sc.shots
+        _needs_generation(s, project_dir, force) and not _keeps_keyframe(s)
+        for sc in project.scenes
+        for s in sc.shots
     ):
-        i2v_ok = True  # nothing to animate with i2v; don't load the model
+        i2v_ok = True  # nothing left to animate with i2v; don't load the model
     elif provider == "animegen":
         generator = get_video_generator(config, "animegen")
         generator.width, generator.height, generator.fps = (

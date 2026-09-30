@@ -147,6 +147,8 @@ Seeds: deterministic per shot (hash of project id + shot id) unless set.
    graphics stay exactly the same and do not change` (CFG 1 ignores the negative prompt).
    **VRAM gate:** before loading, if free VRAM < `video.animegen.min_free_vram_gb`, do not load;
    the stage falls back to `still_motion` for all shots and logs why.
+   Shots with `visual.text`, or close-ups whose visual mentions a screen, always use `still_motion`:
+   i2v rewrites screens and writing into gibberish.
    Postprocess: trim to duration, 16→project fps, lanczos upscale to 1080×1920.
 2. `still_motion` (fallback, CPU only, must look alive, not a slideshow):
    - smooth sub-pixel camera move driven by `shot.camera` with ease-in-out (no zoompan jitter:
@@ -209,6 +211,8 @@ anime-short resume <project_id>        # run every stage not marked done, item-l
 anime-short status <project_id>        # table of stages and per-shot artifacts/modes
 ```
 Each stage skips items whose artifact already exists unless `--force`.
+Running a stage (with or without `--force`) marks every later stage pending, since it may have
+regenerated items; the later stages' own skips keep re-running them cheap.
 
 ## 14. Quality bar
 

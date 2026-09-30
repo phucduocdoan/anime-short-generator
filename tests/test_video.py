@@ -258,20 +258,33 @@ def test_run_videos_keeps_text_shots_on_still_motion(tmp_path: Path, monkeypatch
     monkeypatch.setattr(
         stage_mod, "get_video_generator", lambda c, name: i2v if name == "animegen" else still
     )
-    monkeypatch.setattr(stage_mod, "gpu_session", lambda generator, min_free_gb: nullcontext())
+    sessions = []
+    monkeypatch.setattr(
+        stage_mod, "gpu_session", lambda generator, min_free_gb: sessions.append(1) or nullcontext()
+    )
     text_shot = make_shot(
         id="scene_01_b", visual=VisualSpec(subject="phone screen", text="Are you there?")
     )
+    screen_close_up = make_shot(
+        id="scene_01_c",
+        visual=VisualSpec(subject="minh", shot_type="Close-up", extra="phone screen lit"),
+    )
+    held_phone = make_shot(
+        id="scene_01_d",
+        visual=VisualSpec(subject="minh", shot_type="medium shot", extra="phone screen glowing"),
+    )
     project = make_project()
-    project.scenes[0].shots.append(text_shot)
+    project.scenes[0].shots += [text_shot, screen_close_up, held_phone]
     _prep_project_image(tmp_path, project)
 
     run_videos(project, tmp_path, make_config(provider="animegen"))
 
-    plain, with_text = project.scenes[0].shots
-    assert (i2v.calls, still.calls) == (1, 1)
-    assert plain.video.mode == VideoMode.i2v
-    assert with_text.video.mode == VideoMode.still_motion
+    modes = [shot.video.mode for shot in project.scenes[0].shots]
+    assert modes == [VideoMode.i2v, VideoMode.still_motion, VideoMode.still_motion, VideoMode.i2v]
+    assert (i2v.calls, still.calls, len(sessions)) == (2, 2, 1)
+
+    run_videos(project, tmp_path, make_config(provider="animegen"))  # all done: no model load
+    assert (i2v.calls, still.calls, len(sessions)) == (2, 2, 1)
 
     run_videos(project, tmp_path, make_config(provider="animegen"), force=True)
-    assert (i2v.calls, still.calls) == (2, 2)
+    assert (i2v.calls, still.calls, len(sessions)) == (4, 4, 2)
