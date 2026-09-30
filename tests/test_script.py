@@ -278,6 +278,21 @@ def test_build_shots_keeps_only_plain_english_text():
     assert [s.visual.text for s in build_shots("scene_01", drafts)] == ["I'm here", ""]
 
 
+def test_build_shots_drops_clauses_that_describe_writing():
+    # Real planner output: the image model draws these clauses as gibberish text.
+    draft = ShotDraft(
+        subject="minh",
+        camera="static",
+        lighting="soft, dim, cool-toned with red text highlights glowing faintly",
+        extra="red scrolling text partially visible in foreground, rain streaks across window",
+        text="",
+    )
+    (shot,) = build_shots("scene_04", [draft])
+    assert shot.visual.lighting == "soft, dim"
+    assert shot.visual.extra == "rain streaks across window"
+    assert shot.visual.subject == "minh"
+
+
 def test_run_plan_passes_previous_scene_camera(monkeypatch, tmp_path):
     static_payload = shot_payload(1)
     static_payload["shots"][0]["camera"] = "static"

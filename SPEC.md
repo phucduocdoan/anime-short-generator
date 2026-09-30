@@ -127,6 +127,9 @@ Keyframe size: 864×1536 (exact 9:16, multiple of 16) unless the provider needs 
 `text` holds the exact words of any writing in the frame, in English, max 40 chars, usually empty:
 image models render short English text legibly but invent Chinese or gibberish for other
 languages or for writing that is only described. The planner must always emit it (required field).
+`build_shots` drops comma/semicolon clauses of `subject`, `action`, `setting`, `lighting`, `extra`
+that mention writing (text, words, letters, caption, overlay, timestamp), since the planner LLM
+keeps writing them despite the prompt.
 `prompt_builder.build(shot, characters, style, prompt_style) -> (prompt, negative)`:
 - `tags` style: comma-separated lowercase tags, quality prefix, character `tags`, style tags.
 - `natural` style: fluent English sentences, character `description`, style natural text.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import re
 
 from pydantic import BaseModel, Field, create_model
 
@@ -13,6 +14,19 @@ from anime_short.script.llm import LLMClient
 
 SHOT_LETTERS = "abcdefghijklmnopqrstuvwxyz"
 _TYPOGRAPHIC = str.maketrans("\u2018\u2019\u201c\u201d\u2014", "''\"\"-")
+
+
+_WRITING = re.compile(
+    r"\b(text|texts|writing|lettering|letters|words|captions?|overlays?|timestamps?)\b", re.I
+)
+
+
+def _without_writing(field: str) -> str:
+    """Drop the clauses of a visual field that describe writing: the planner LLM keeps adding them
+    ("red scrolling text") despite the prompt, and the image model draws them as gibberish. The
+    exact words, if any, go in `text`."""
+    clauses = re.split(r"\s*[,;]\s*", field.strip())
+    return ", ".join(c for c in clauses if c and not _WRITING.search(c))
 
 
 def _english_text(text: str) -> str:
@@ -81,13 +95,13 @@ def build_shots(
         previous_camera = camera
         letter = SHOT_LETTERS[i] if i < len(SHOT_LETTERS) else str(i)
         visual = VisualSpec(
-            subject=sd.subject,
-            action=sd.action,
-            setting=sd.setting,
-            lighting=sd.lighting,
+            subject=_without_writing(sd.subject),
+            action=_without_writing(sd.action),
+            setting=_without_writing(sd.setting),
+            lighting=_without_writing(sd.lighting),
             shot_type=sd.shot_type,
             mood=sd.mood,
-            extra=sd.extra,
+            extra=_without_writing(sd.extra),
             text=_english_text(sd.text),
         )
         shots.append(
