@@ -140,6 +140,20 @@ def test_natural_body_part_is_not_called_no_people():
     assert "Close-up shot." in prompt
 
 
+@pytest.mark.parametrize(
+    "subject",
+    [
+        "A young couple sitting side by side, seen from behind",
+        "Two distant figures walking along a seawall",
+        "A lone wanderer standing at the water's edge",
+    ],
+)
+def test_natural_people_without_characters_are_not_called_no_people(subject):
+    visual = VisualSpec(subject=subject, shot_type="wide shot")
+    prompt, _ = build(make_shot(characters=[], visual=visual), {}, STYLE, PromptStyle.natural)
+    assert "no people" not in prompt.lower()
+
+
 def test_natural_shot_type_already_ending_in_shot_is_not_doubled():
     visual = VisualSpec(subject="an empty street", shot_type="wide shot")
     prompt, _ = build(make_shot(characters=[], visual=visual), {}, STYLE, PromptStyle.natural)

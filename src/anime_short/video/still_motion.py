@@ -137,7 +137,8 @@ class StillMotionGenerator:
             px = max(-1.0, min(1.0, px + drift_x))
             py = max(-1.0, min(1.0, py + drift_y))
 
-            box_w, box_h = self.width / zoom, self.height / zoom
+            # zoom 1 = the whole canvas (whole keyframe); oversample only adds resampling headroom
+            box_w, box_h = canvas_w / zoom, canvas_h / zoom
             margin_x = max(0.0, (canvas_w - box_w) / 2)
             margin_y = max(0.0, (canvas_h - box_h) / 2)
             cx = canvas_cx + px * margin_x

@@ -150,6 +150,16 @@ def test_complete_structured_returns_valid_response():
     assert raw.calls[0]["response_format"]["type"] == "json_schema"
 
 
+def test_complete_structured_sends_reasoning_effort_only_when_set():
+    for effort in (None, "low"):
+        raw = FakeRawClient([json.dumps({"name": "Bob", "age": 30})])
+        config = LLMConfig(base_url="x", model="m", reasoning_effort=effort)
+        LLMClient(config, client=raw).complete_structured(
+            system="s", user="u", schema=Person, max_tokens=50
+        )
+        assert raw.calls[0].get("reasoning_effort") == effort
+
+
 def test_complete_structured_retries_on_invalid_json_then_succeeds():
     raw = FakeRawClient(["not json at all", json.dumps({"name": "Alice", "age": 5})])
     client = LLMClient(LLMConfig(base_url="x", model="m", max_retries=2), client=raw)
@@ -431,3 +441,27 @@ def test_replan_scene_requires_audio_duration():
     project = make_project(scenes=[scene])
     with pytest.raises(ValueError, match="audio duration"):
         stage.replan_scene(project, scene, config)
+
+
+def test_quotes_format_uses_the_quotes_prompt_and_no_characters(monkeypatch, tmp_path):
+    llm = FakeLLM([{**SCRIPT_PAYLOAD, "characters": []}])
+    monkeypatch.setattr(stage, "LLMClient", lambda cfg: llm)
+    content = ContentSpec(topic="love", duration_seconds=4, format="quotes")
+    project = make_project(content=content)
+
+    stage.run_script(project, tmp_path, make_config())
+
+    assert "quotes" in llm.calls[0]["system"]
+    assert project.characters == {}
+    assert len(project.scenes) == 2
+
+
+def test_quotes_plan_gets_format_constraints(monkeypatch, tmp_path):
+    llm = FakeLLM([shot_payload(1)])
+    monkeypatch.setattr(stage, "LLMClient", lambda cfg: llm)
+    content = ContentSpec(topic="love", duration_seconds=4, format="quotes")
+    project = make_project(content=content, scenes=[Scene(id="scene_01", narration="a b")])
+
+    stage.run_plan(project, tmp_path, make_config())
+
+    assert stage.QUOTES_PLAN_CONSTRAINTS in llm.calls[0]["system"]

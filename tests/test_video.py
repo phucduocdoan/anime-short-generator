@@ -100,6 +100,23 @@ def test_still_motion_generates_normalized_clip(tmp_path: Path, camera):
     assert result.height == 160
 
 
+@pytest.mark.parametrize("oversample", [1.0, 1.4, 2.0])
+def test_still_motion_framing_starts_from_whole_keyframe(oversample):
+    generator = StillMotionGenerator({"oversample": oversample}, width=1080, height=1920)
+    canvas_w, canvas_h = round(1080 * oversample), round(1920 * oversample)
+
+    push_in = generator._boxes(canvas_w, canvas_h, CameraMove.push_in, 24)
+    pull_out = generator._boxes(canvas_w, canvas_h, CameraMove.pull_out, 24)
+
+    whole = (0.0, 0.0, canvas_w, canvas_h)
+    assert push_in[0] == pytest.approx(whole)
+    assert pull_out[-1] == pytest.approx(whole)
+    # the push-in ends on the same centred crop regardless of oversample
+    left, top, right, bottom = push_in[-1]
+    assert (right - left) / canvas_w == pytest.approx(1 / 1.12)
+    assert (bottom - top) / canvas_h == pytest.approx(1 / 1.12)
+
+
 # --- stage: skip / force / fallback -----------------------------------------------------------
 
 

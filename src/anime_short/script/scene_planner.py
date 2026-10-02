@@ -17,7 +17,8 @@ _TYPOGRAPHIC = str.maketrans("\u2018\u2019\u201c\u201d\u2014", "''\"\"-")
 
 
 _WRITING = re.compile(
-    r"\b(text|texts|writing|lettering|letters|words|captions?|overlays?|timestamps?)\b", re.I
+    r"\b(text|texts|writing|lettering|letters|words|captions?|overlays?|timestamps?|typography)\b",
+    re.I,
 )
 
 

@@ -1,0 +1,22 @@
+name: lofi_quotes
+positive_tags: >-
+  masterpiece, best quality, score_7, safe, retro anime, 1980s anime, 1990s anime, anime screencap,
+  cel shading, rough lineart, painted background, low key, dim lighting, muted colors,
+  desaturated, dark teal, forest green, navy blue, rust orange light, film grain, faded colors,
+  nostalgic
+positive_natural: >-
+  A still frame from a late-1980s / early-1990s Japanese hand-drawn anime film: cel-painted
+  figures with slightly rough dark ink outlines and hard-edged flat shadow shapes, over a
+  hand-painted gouache background with visible brush texture. Low-key, dim, moody light. The
+  whole frame is color graded into ONE dominant muted hue (deep forest green, dark teal, or navy
+  blue) with a single warm accent of rust orange or burnt red light. Desaturated, faded, low
+  contrast, lifted milky blacks, like a worn 35mm anime print with visible film grain. Quiet,
+  intimate, nostalgic, romantic. Not bright, not pastel, no smooth digital gradients, no glow,
+  not photorealistic, no 3D, no text.
+negative_tags: >-
+  worst quality, low quality, lowres, bad anatomy, bad hands, text, watermark, signature, logo,
+  blurry, jpeg artifacts, 3d, glossy, photorealistic, pastel, bright, oversaturated, gradient
+negative_natural: >-
+  low quality, text, watermark, blurry, glossy 3d, photorealistic, bright pastel colors
+camera_preferences: [wide shot, medium wide shot, medium shot]
+reference_image: refs/lofi_quotes.png

@@ -66,6 +66,7 @@ def test_build_music_duck_args_has_sidechain():
     assert "sidechaincompress" in joined
     assert "threshold=0.05" in joined  # default when the caller doesn't measure the voice peak
     assert "volume=-22.0dB" in joined
+    assert "afade=t=out:st=8.000:d=2.000" in joined
     assert "-t 10.000" in joined
 
 
@@ -212,6 +213,10 @@ def test_duck_music_actually_attenuates_during_voice(tmp_path):
     during_silence = rms_db(out, 1.2, 1.8)
     assert during_voice < during_silence - 3
 
+    # duck=False: the music stays at volume_db while the voice speaks (window before the fade-out).
+    steady = duck_music(music_path, voice_path, 4.0, -6.0, tmp_path, duck=False)
+    assert abs(rms_db(steady, 0.2, 0.8) - rms_db(steady, 1.2, 1.8)) < 0.5
+
 
 def test_build_audio_mix_args():
     args = ff.build_audio_mix_args(Path("v.wav"), Path("m.wav"), Path("out.wav"))
@@ -254,9 +259,29 @@ def test_build_final_encode_args_burns_subtitles_and_fades():
     assert "ass='subs.ass':fontsdir='fonts'" in joined
     assert "fade=t=in:st=0:d=0.3" in joined
     assert "fade=t=out:st=8.700:d=0.3" in joined
+    assert "noise" not in joined and "vignette" not in joined
     assert "-crf 18" in joined
     assert "-b:a 192k" in joined
     assert "+faststart" in joined
+
+
+def test_build_final_encode_args_film_look_goes_under_subtitles():
+    args = ff.build_final_encode_args(
+        Path("v.mp4"),
+        Path("a.wav"),
+        Path("subs.ass"),
+        Path("fonts"),
+        18,
+        "192k",
+        0.3,
+        9.0,
+        Path("out.mp4"),
+        film_grain=14,
+        vignette=True,
+    )
+    vf = args[args.index("-vf") + 1]
+    assert "noise=c0s=14:c0f=t" in vf
+    assert vf.index("blend=all_mode=grainmerge") < vf.index("vignette") < vf.index("ass=")
 
 
 def test_check_ffmpeg_has_libx264_and_libass():
@@ -432,3 +457,14 @@ def test_render_stage_marks_done_and_sets_output(tmp_path, config):
     assert project.stages["render"] == StageStatus.done
     assert project.output == "output/final.mp4"
     assert (tmp_path / project.output).exists()
+
+
+def test_build_music_args_without_ducking_ignores_voice():
+    args = ff.build_music_duck_args(
+        Path("music.wav"), Path("voice.wav"), 10.0, -15.0, Path("out.wav"), duck=False
+    )
+    joined = " ".join(args)
+    assert "sidechaincompress" not in joined
+    assert "voice.wav" not in joined
+    assert "volume=-15.0dB" in joined
+    assert "afade=t=out:st=8.000:d=2.000[ducked]" in joined

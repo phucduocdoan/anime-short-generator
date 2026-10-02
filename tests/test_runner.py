@@ -42,6 +42,30 @@ def test_max_scene_seconds_maps_to_timeline():
     assert load_config(overrides).timeline.max_shot_seconds == 4
 
 
+def test_spec_maps_words_per_second_and_merges_timeline():
+    overrides = runner.spec_to_overrides(
+        {
+            "content": {"topic": "x"},
+            "script": {"max_scene_seconds": 6, "words_per_second": 2.8},
+            "timeline": {"scene_gap_seconds": 0.7},
+        }
+    )
+    config = load_config(overrides)
+    assert config.script.words_per_second == 2.8
+    assert config.timeline.max_shot_seconds == 6
+    assert config.timeline.scene_gap_seconds == 0.7
+
+
+def test_spec_render_section_overrides_render_config():
+    overrides = runner.spec_to_overrides(
+        {"content": {"topic": "x"}, "render": {"film_grain": 14, "vignette": True}}
+    )
+    config = load_config(overrides)
+    assert config.render.film_grain == 14
+    assert config.render.vignette is True
+    assert config.render.crf == 18
+
+
 @pytest.fixture
 def workspace_config(tmp_path):
     return load_config({"workspace_dir": str(tmp_path)})
@@ -87,7 +111,7 @@ def test_run_pending_skips_done_and_marks_failure(workspace_config, monkeypatch)
     calls.clear()
     monkeypatch.setattr(runner, "stage_function", lambda stage: lambda *a: calls.append(stage))
     runner.run_pending(project_dir)
-    assert calls == ["images", "videos", "subtitles", "render"]
+    assert calls == ["images", "videos", "subtitles", "music", "render"]
 
 
 def test_stage_functions_are_importable_names():

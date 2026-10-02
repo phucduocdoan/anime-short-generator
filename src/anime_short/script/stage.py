@@ -24,7 +24,7 @@ def run_script(
     if project.scenes and not force:
         return
     llm = LLMClient(config.llm)
-    need_characters = not project.characters
+    need_characters = not project.characters and project.content.format == "story"
     draft = generate_script(project.content, project.language, config, llm, need_characters)
     if need_characters:
         project.characters.update(characters_from_draft(draft))
@@ -32,6 +32,24 @@ def run_script(
     project.hook = project.scenes[0].narration if project.scenes else None
     project.ending = draft.ending.strip() or None
     save_project(project, project_dir)
+
+
+# Quotes videos (ContentSpec.format) are moody frames with the spoken line overlaid mid-frame.
+QUOTES_PLAN_CONSTRAINTS = (
+    "This is a quotes video over moody retro anime frames. Vary the framing: mostly wide or "
+    "medium-wide shots where people are clearly visible in the lower half of the frame (often a "
+    "young couple together, sometimes one person), seen from behind, in profile or three-quarter "
+    "view; now and then a medium shot of one person in profile looking away, or a place with "
+    "nobody. Keep the middle of the frame calm (sky, a wall, a slope) but never mention text, "
+    "typography or captions in any field. Light is dim and muted: dusk, night, overcast, a single "
+    "warm lamp or low sun; never write pastel, gradient, bright or minimalist. Name one dominant "
+    "color in `lighting` and change it from shot to shot (navy blue with rust orange, dark teal, "
+    "forest green, olive and ochre, deep red-brown). `text` stays empty."
+)
+
+
+def _format_constraints(project: ProjectSpec) -> str:
+    return QUOTES_PLAN_CONSTRAINTS if project.content.format == "quotes" else ""
 
 
 def run_plan(
@@ -48,6 +66,7 @@ def run_plan(
             llm,
             language=project.language,
             previous_camera=_previous_camera(project, index),
+            extra_constraints=_format_constraints(project),
         )
         save_project(project, project_dir)
 
@@ -77,6 +96,6 @@ def replan_scene(project: ProjectSpec, scene: Scene, config: AppConfig) -> None:
         extra_constraints=(
             f"Hard constraint: no single shot may exceed {config.timeline.max_shot_seconds:.1f} "
             "seconds of screen time; the scene's real narration audio duration is now known, "
-            "split it accordingly."
-        ),
+            f"split it accordingly. {_format_constraints(project)}"
+        ).strip(),
     )

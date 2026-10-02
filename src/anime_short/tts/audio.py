@@ -1,5 +1,5 @@
 """Shared audio post-processing for TTS providers (SPEC §8): decode to float32,
-trim silence, adjust speed, write 48 kHz mono WAV, shift word timings. Pure
+trim silence, fade edges, adjust speed, write 48 kHz mono WAV, shift word timings. Pure
 functions (no model, no network) so they are cheap to unit test directly.
 """
 
@@ -43,6 +43,19 @@ def trim_silence(
     start = max(0, int(nonsilent[0]) - pad)
     end = min(samples.size, int(nonsilent[-1]) + pad + 1)
     return samples[start:end], start / sample_rate
+
+
+def fade_edges(samples: np.ndarray, sample_rate: int, seconds: float = 0.01) -> np.ndarray:
+    """Short linear fade-in/out, so a clip that starts or stops while sound is still decaying
+    (a cut between lines, or a provider that stops on the last word) does not click."""
+    n = min(int(seconds * sample_rate), samples.size // 2)
+    if n == 0:
+        return samples
+    faded = samples.copy()
+    ramp = np.linspace(0.0, 1.0, n, dtype=samples.dtype)
+    faded[:n] *= ramp
+    faded[-n:] *= ramp[::-1]
+    return faded
 
 
 def write_wav(samples: np.ndarray, sample_rate: int, output_path: Path) -> None:

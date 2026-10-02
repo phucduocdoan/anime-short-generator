@@ -1,0 +1,59 @@
+project:
+  id: quotes_love_life
+  title: "Things no one tells you about love"
+
+content:
+  format: quotes
+  topic: >
+    Quiet, honest truths about love and life for someone who is tired, heartbroken or
+    lonely: letting go, loving yourself, and staying soft in a hard world.
+  duration_seconds: 45
+  tone: [tender, bittersweet, hopeful]
+  audience: "18-35, US"
+  language: en
+
+# The local 8B model writes generic, slogan-like English lines; a hosted model writes the
+# monologue (and plans the shots) far better.
+llm:
+  base_url: https://generativelanguage.googleapis.com/v1beta/openai/
+  model: gemini-3.8-flash
+  api_key_env: GEMINI_API_KEY
+  temperature: 1.0
+  reasoning_effort: low
+
+script:
+  words_per_second: 2.8  # the calm ElevenLabs voice below speaks ~2.8-3 words/s
+  max_scene_seconds: 6
+
+timeline:
+  scene_gap_seconds: 1.0  # a breath between lines
+  tail_seconds: 1.5
+
+voice:
+  provider: gemini
+  voice: Enceladus  # Gemini TTS: deep, warm, restrained
+  style: >-
+    slow and soft, low, warm and intimate, like an older friend talking quietly at 2 a.m. Gentle, a little melancholic, never forceful. Short pause between lines.
+visual:
+  provider: gemini
+  style: lofi_quotes
+
+video:
+  provider: animegen
+
+subtitle:
+  enabled: true
+  style: quote
+  font_name: Mali
+  max_words: 16
+  max_chars: 90
+
+music:
+  enabled: true
+  provider: acestep
+  volume_db: -15
+  duck: false  # music stays at -15 dB under the voice too
+
+render:
+  film_grain: 14
+  vignette: true

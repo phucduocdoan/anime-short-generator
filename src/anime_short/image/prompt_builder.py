@@ -55,6 +55,10 @@ _HUMAN_HINTS = {
     "figure",
     "silhouette",
     "crowd",
+    "couple",
+    "lover",
+    "wanderer",
+    "traveler",
     "hand",
     "hands",
     "finger",
@@ -99,6 +103,7 @@ def _visual_text(shot: Shot) -> str:
 
 def _implies_humans(shot: Shot) -> bool:
     words = set(re.findall(r"[a-z]+", _visual_text(shot).lower()))
+    words |= {w[:-1] for w in words if w.endswith("s")}  # plurals: figures, couples, lovers
     return bool(words & _HUMAN_HINTS)
 
 

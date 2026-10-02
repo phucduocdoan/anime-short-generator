@@ -25,6 +25,9 @@ class LLMConfig(BaseModel):
     model: str
     api_key_env: str = "LLM_API_KEY"
     temperature: float = 0.8
+    # Hosted reasoning models (e.g. Gemini) spend `max_tokens` on thinking too; "low" keeps
+    # the JSON from being cut off. Not sent when unset (the local vLLM server).
+    reasoning_effort: str | None = None
     max_retries: int = 3
     timeout_seconds: float = 180
 
@@ -42,6 +45,7 @@ class ScriptConfig(BaseModel):
 class TTSConfig(BaseModel):
     provider: str
     elevenlabs: dict[str, Any] = {}
+    gemini: dict[str, Any] = {}
     vieneu: dict[str, Any] = {}
 
 
@@ -79,12 +83,17 @@ class RenderConfig(BaseModel):
     loudness_lufs: float = -14
     true_peak_db: float = -1
     fade_seconds: float = 0.3
+    film_grain: int = 0  # strength of moving film grain (ffmpeg `noise`), 0 = off
+    vignette: bool = False
 
 
 class MusicConfig(BaseModel):
     enabled: bool = False
-    path: str | None = None
+    path: str | None = None  # a fixed track, used when no `provider` generates one
+    provider: str | None = None  # "acestep": the music stage generates a track per project
     volume_db: float = -22
+    duck: bool = True  # lower the music under the voice; false = constant `volume_db`
+    acestep: dict[str, Any] = {}
 
 
 class GPUConfig(BaseModel):

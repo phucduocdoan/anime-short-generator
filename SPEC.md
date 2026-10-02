@@ -45,6 +45,8 @@ spec.yaml / --topic
    ▼
 [subtitles]  ASS file (word-level if timestamps exist, else phrase chunks)
    ▼
+[music]      optional: generate a background track for the video length (ACE-Step API)
+   ▼
 [render]     FFmpeg: concat clips + voice + music + subtitles + loudnorm → output/final.mp4
 ```
 
@@ -101,6 +103,14 @@ All paths stored **relative to the project dir**.
   estimated weight (relative duration). Characters are referenced by id; appearance text is **never**
   written by the LLM — the prompt builder injects it from the character bible.
 - `replan_scene(scene, actual_duration)`: re-split one scene into more shots after TTS.
+- `content.format`: `story` (default; the above) or `quotes`: a spoken monologue to "you" about
+  love/life, one short original line per scene (~8–14 words, `templates/script_system_quotes.txt`),
+  over moody, dimly lit retro anime frames; no character bible; the planner is told to show mostly
+  wide/medium-wide shots with people (often a couple) seen from behind or in profile, keep the
+  middle of the frame calm for the overlaid line, and avoid bright/pastel wording.
+- `llm.reasoning_effort` (optional) is passed through for hosted reasoning models (e.g. Gemini's
+  OpenAI-compatible endpoint), whose thinking otherwise eats `max_tokens`. A spec may override the
+  whole `llm` section (the quotes example uses Gemini: the local 8B model writes generic English).
 - Prompts in `templates/*.txt`. Keep context small (8k model limit): plan one scene per call.
 
 ## 6. Images
@@ -177,7 +187,16 @@ The `videos` stage records `video.mode` per shot so render and reports know what
 (path, duration via ffprobe, words: list[WordTiming] possibly empty).
 
 - `elevenlabs`: `eleven_v3`, `/v1/text-to-speech/{voice_id}/with-timestamps`, convert character
-  alignment → word timings. HTTP via `httpx`, retries on 429/5xx.
+  alignment → word timings. HTTP via `httpx`, retries on 429/5xx. It also has
+  `synthesize_script(texts, output_paths)`: all lines in ONE request (joined by a blank line) so
+  intonation carries from line to line, cut in the middle of the pause between lines using the
+  alignment. The TTS stage uses it whenever a provider has it, and then re-reads every line if
+  any line is pending.
+- `gemini`: `gemini-3.8-flash-tts`, prebuilt voice `voice.voice` (e.g. Enceladus). No system
+  instruction: the delivery comes from `voice.style`, sent as a structured prompt (audio profile,
+  director's notes, transcript). Returns 24 kHz WAV, no timestamps. `synthesize_script` reads the
+  script in one take and cuts in the middle of the n − 1 longest pauses; a split whose pieces do
+  not fit the lines' character shares (beyond 2.5×) is rejected and the script read again.
 - `vieneu`: local VieNeu-TTS (Apache-2.0, Vietnamese). No timestamps. Used for local E2E.
 - Audio normalised to 48 kHz mono WAV. Leading/trailing silence trimmed to ≤ 0.15 s.
 
@@ -197,13 +216,30 @@ margins for Shorts UI. Chunks of ≤ 5 words / ≤ 28 chars.
 - With word timings: chunk timing from words; current word highlighted (karaoke `\k` or colour).
 - Without: split narration into chunks, time proportionally by character count within scene audio.
 
+`subtitle.style: quote` (quotes videos): white italic handwriting (Mali Italic 96 @1920, OFL, vendored)
+mid-frame (~46 % height) over the sky, soft blurred half-transparent halo instead of an outline,
+balanced wrapping. Each chunk (normally the whole line: `max_words` 16 / `max_chars` 90) fades in
+when it starts being spoken and stays until the next line starts. No karaoke.
+
+## 10b. Music
+
+`music/stage.py`, when `music.enabled` and `music.provider: acestep`: one instrumental track per
+project from a local ACE-Step 1.5 server (`music.acestep.base_url`, `/release_task` →
+poll `/query_result` → download `/v1/audio`), `audio_duration` = video length + 8 s, seed derived
+from the project id, saved to `music/music.mp3` and recorded in `project.music`. The server holds
+its own model in VRAM (~17 GB once loaded).
+
 ## 11. Render
 
 `render/` builds FFmpeg commands in Python (no MoviePy):
 1. concat shot clips (concat demuxer, all clips already normalised);
 2. voice track: scene audios placed at scene start (adelay/amix or concat with silences);
-3. optional music: loop/trim, `volume_db`, side-chain ducking under voice, fade in/out;
-4. burn ASS subtitles (`fontsdir` = `assets/fonts`);
+3. optional music: the track from the music stage (`project.music`) or the fixed `music.path`;
+   loop/trim, `volume_db`, side-chain ducking under voice (`music.duck`, default true; false keeps
+   the music at a constant `volume_db`), 2 s fade-out;
+4. optional film look under the subtitles: `render.film_grain` (moving luma grain, generated at
+   half resolution and upscaled; 0 = off) and `render.vignette`; settable from spec.yaml `render:`;
+   burn ASS subtitles (`fontsdir` = `assets/fonts`);
 5. loudness normalise to −14 LUFS, true peak −1 dB;
 6. H.264 High, yuv420p, CRF 18, AAC 192k 48 kHz, `+faststart` → `output/final.mp4`.
 Short fade-in/out (0.3 s) at start/end. Cuts between shots (Shorts pacing).
@@ -238,5 +274,5 @@ regenerated items; the later stages' own skips keep re-running them cheap.
 
 ## 15. Later (not MVP)
 
-Character reference / LoRA, Qwen-Image-Edit for identity consistency, music generation, SFX,
+Character reference / LoRA, Qwen-Image-Edit for identity consistency, SFX,
 thumbnails, quality scoring, prompt retry, multi-GPU, web UI.

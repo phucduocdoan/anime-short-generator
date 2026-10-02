@@ -175,3 +175,43 @@ def test_run_subtitles_writes_file_and_marks_done(config, tmp_path):
     assert "Nhưng" in out.read_text(encoding="utf-8")
     assert project.stages["subtitles"] == "done"
     assert (tmp_path / "project.json").exists()
+
+
+# --- quote style -----------------------------------------------------------------------------
+
+
+def _dialogue_times(doc: str) -> list[tuple[str, str]]:
+    lines = [line for line in doc.splitlines() if line.startswith("Dialogue:")]
+    return [tuple(line.split(",")[1:3]) for line in lines]
+
+
+def test_quote_style_header_is_italic_mid_frame(config):
+    config.subtitle.style = "quote"
+    config.subtitle.font_name = "Mali"
+    project = ProjectSpec(id="p", title="t", content=ContentSpec(topic="t"))
+    header, pos_y = build_header(project, config)
+    style = next(line for line in header.splitlines() if line.startswith("Style:"))
+    fields = style.split(",")
+    assert fields[0] == "Style: quote" and fields[1] == "Mali"
+    assert (fields[7], fields[8]) == ("0", "-1")  # not bold, italic
+    assert "WrapStyle: 0" in header
+    assert 0.4 * 1920 <= pos_y <= 0.5 * 1920
+
+
+def test_quote_lines_stay_up_until_the_next_line(config):
+    config.subtitle.style = "quote"
+    config.subtitle.max_words = 16
+    config.subtitle.max_chars = 90
+    first = make_scene_with_words("scene_01", start=0.0)
+    second = make_scene_without_words("scene_02", start=3.0)
+    project = ProjectSpec(id="p", title="t", content=ContentSpec(topic="t"), scenes=[first, second])
+    doc = build_ass_document(project, config)
+
+    # one event per line: no karaoke, the whole line shown at once, held through the gap
+    assert r"\k" not in doc
+    assert r"\fad(" in doc
+    assert _dialogue_times(doc) == [
+        ("0:00:00.00", "0:00:03.00"),
+        ("0:00:03.00", format_ass_time(3.0 + 3.0 + config.timeline.tail_seconds)),
+    ]
+    assert "Nhưng hôm ấy, chuyến tàu cuối cùng" in doc

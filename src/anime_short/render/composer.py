@@ -50,6 +50,8 @@ def compose(project: ProjectSpec, project_dir: Path, config: AppConfig) -> Path:
             config.render.fade_seconds,
             total_duration,
             final_path,
+            film_grain=config.render.film_grain,
+            vignette=config.render.vignette,
         )
     )
     return final_path

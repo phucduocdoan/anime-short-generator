@@ -15,6 +15,10 @@ def get_tts(config: AppConfig, voice: VoiceSpec) -> TTSProvider:
         from anime_short.tts.elevenlabs import ElevenLabsProvider
 
         return ElevenLabsProvider(config.tts.elevenlabs, voice)
+    if provider == "gemini":
+        from anime_short.tts.gemini import GeminiTTSProvider
+
+        return GeminiTTSProvider(config.tts.gemini, voice)
     if provider == "vieneu":
         from anime_short.tts.vieneu import VieNeuProvider
 

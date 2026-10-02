@@ -46,6 +46,7 @@ class LLMClient:
         self._model = config.model
         self._temperature = config.temperature
         self._max_retries = config.max_retries
+        self._reasoning_effort = config.reasoning_effort
 
     def complete_structured(
         self,
@@ -71,6 +72,10 @@ class LLMClient:
             "json_schema": {"name": schema.__name__, "schema": json_schema, "strict": True},
         }
 
+        extra: dict[str, Any] = {}
+        if self._reasoning_effort:
+            extra["reasoning_effort"] = self._reasoning_effort
+
         last_error: Exception | None = None
         for attempt in range(self._max_retries + 1):
             response = self._client.chat.completions.create(
@@ -79,6 +84,7 @@ class LLMClient:
                 temperature=self._temperature,
                 max_tokens=max_tokens,
                 response_format=response_format,
+                **extra,
             )
             content = response.choices[0].message.content or ""
             try:

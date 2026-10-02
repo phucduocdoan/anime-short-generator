@@ -36,6 +36,7 @@ STAGE_FUNCTIONS: dict[str, str] = {
     "images": "anime_short.image.stage:run_images",
     "videos": "anime_short.video.stage:run_videos",
     "subtitles": "anime_short.subtitle.stage:run_subtitles",
+    "music": "anime_short.music.stage:run_music",
     "render": "anime_short.render.stage:run_render",
 }
 
@@ -89,11 +90,14 @@ def spec_to_overrides(spec: dict[str, Any]) -> dict[str, Any]:
     if provider := spec.get("voice", {}).get("provider"):
         overrides["tts"] = {"provider": provider}
     script = spec.get("script", {})
-    if "hook_seconds" in script:
-        overrides.setdefault("script", {})["hook_seconds"] = script["hook_seconds"]
+    for key in ("hook_seconds", "words_per_second"):
+        if key in script:
+            overrides.setdefault("script", {})[key] = script[key]
     if "max_scene_seconds" in script:
         overrides["timeline"] = {"max_shot_seconds": script["max_scene_seconds"]}
-    for section in ("subtitle", "music"):
+    if "timeline" in spec:
+        overrides["timeline"] = {**overrides.get("timeline", {}), **spec["timeline"]}
+    for section in ("llm", "subtitle", "music", "render"):
         if section in spec:
             overrides[section] = spec[section]
     return overrides

@@ -32,12 +32,21 @@ def run_tts(
         return
 
     provider = get_tts(config, project.voice)
+    # A provider that reads the whole script in one take keeps the intonation continuous from
+    # line to line; re-reading a single line would break that, so any pending line redoes all.
+    whole_script = hasattr(provider, "synthesize_script")
+    if whole_script:
+        pending = project.scenes
     with gpu_session(provider, min_free_gb=provider.min_free_vram_gb):
-        for scene in pending:
-            output_path = audio_path(scene.id)
-            result = provider.synthesize(scene.narration, output_path)
+        if whole_script:
+            results = provider.synthesize_script(
+                [s.narration for s in pending], [audio_path(s.id) for s in pending]
+            )
+        else:
+            results = (provider.synthesize(s.narration, audio_path(s.id)) for s in pending)
+        for scene, result in zip(pending, results, strict=True):
             scene.audio = AudioInfo(
-                path=str(output_path.relative_to(project_dir)),
+                path=str(result.path.relative_to(project_dir)),
                 duration=result.duration,
                 words=result.words,
                 provider=provider.name,

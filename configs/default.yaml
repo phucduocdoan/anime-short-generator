@@ -19,6 +19,8 @@ tts:
     model_id: eleven_v3
     voice_id: null
     output_format: mp3_44100_128
+  gemini:
+    model: gemini-3.8-flash-tts   # Google API; needs GEMINI_API_KEY; no word timestamps
   vieneu:
     voice: null
     device: cuda
@@ -67,8 +69,8 @@ video:
     max_frames: 81
     min_free_vram_gb: 24        # measured peak ~20.9GB reserved at 480x832/81 frames (5s, worst case); +margin
   still_motion:
-    oversample: 1.4           # source is rendered this much larger than output before cropping
-                              # (1.25 = 864*1.25=1080, 1536*1.25=1920: exactly output size, no pan margin)
+    oversample: 1.4           # keyframe is upscaled to this multiple of the output size before the
+                              # float crops are resampled; framing does not depend on it (zoom 1 = whole image)
     grain: 0.03
     vignette: 0.15
 
@@ -85,11 +87,22 @@ render:
   loudness_lufs: -14
   true_peak_db: -1
   fade_seconds: 0.3
+  film_grain: 0      # moving film grain strength (0 = off; quotes videos use ~14)
+  vignette: false
 
 music:
   enabled: false
   path: null
+  provider: null  # acestep: generate a track per project (music stage) instead of `path`
   volume_db: -22
+  duck: true  # false: music stays at volume_db, also while the voice speaks
+  acestep:
+    base_url: http://127.0.0.1:8001
+    prompt: >-
+      lo-fi instrumental, soft felt piano, warm vinyl crackle, slow, tender, romantic,
+      nostalgic, no drums, no percussion
+    bpm: 70
+    key_scale: ""
 
 gpu:
   device: cuda

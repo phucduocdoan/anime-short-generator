@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -25,6 +26,7 @@ STAGES: tuple[str, ...] = (
     "images",
     "videos",
     "subtitles",
+    "music",
     "render",
 )
 
@@ -65,6 +67,9 @@ class Character(BaseModel):
 
 class ContentSpec(BaseModel):
     topic: str
+    # story: a narrated plot with recurring characters; quotes: a spoken monologue of short
+    # lines about love/life, one line per scene over scenery (no character bible).
+    format: Literal["story", "quotes"] = "story"
     duration_seconds: float = 45
     tone: list[str] = Field(default_factory=list)
     audience: str | None = None
@@ -74,6 +79,7 @@ class VoiceSpec(BaseModel):
     provider: str = "vieneu"
     voice: str | None = None
     speed: float = 1.0
+    style: str | None = None  # delivery notes for providers steered by a prompt (gemini)
 
 
 # --- enrichment -----------------------------------------------------------------------------
@@ -161,6 +167,7 @@ class ProjectSpec(BaseModel):
     stages: dict[str, StageStatus] = Field(
         default_factory=lambda: {s: StageStatus.pending for s in STAGES}
     )
+    music: str | None = None  # relative path to the generated background music (music stage)
     output: str | None = None  # relative path to final.mp4
 
     def all_shots(self) -> list[Shot]:

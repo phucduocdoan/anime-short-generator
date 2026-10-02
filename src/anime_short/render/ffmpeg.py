@@ -55,6 +55,9 @@ def build_voice_mix_args(
     return args
 
 
+MUSIC_FADE_OUT_SECONDS = 2.0
+
+
 def build_music_duck_args(
     music_path: Path,
     voice_path: Path,
@@ -62,9 +65,10 @@ def build_music_duck_args(
     volume_db: float,
     output_path: Path,
     threshold: float = 0.05,
+    duck: bool = True,
 ) -> list[str]:
-    """Loop/trim music to `total_duration`, apply `volume_db`, then duck it under the voice
-    track with a sidechain compressor.
+    """Loop/trim music to `total_duration`, apply `volume_db`, then (unless `duck` is false) duck
+    it under the voice track with a sidechain compressor.
 
     `threshold` (linear amplitude, 0-1) should normally be derived from the voice track's
     actual level via `measure_voice_peak` rather than left at its default: a fixed absolute
@@ -76,21 +80,28 @@ def build_music_duck_args(
     # which would otherwise truncate the ducked output early. Padding the sidechain input with
     # silence keeps it from being the one that runs out first, so the ducked track's length
     # tracks the main [music] input instead, which is already trimmed to exactly `total_duration`.
+    # Fade the music out over the last seconds: a looped or generated track would otherwise stop
+    # mid-phrase at the cut.
+    fade = min(MUSIC_FADE_OUT_SECONDS, total_duration / 2)
     filters = (
         f"[0:a]aloop=loop=-1:size=2147483647,atrim=0:{total_duration:.3f},"
-        f"asetpts=PTS-STARTPTS,volume={volume_db}dB[music];"
-        f"[1:a]apad[side];"
-        f"[music][side]sidechaincompress=threshold={threshold}:ratio=8:attack=5:release=400[ducked]"
+        f"asetpts=PTS-STARTPTS,volume={volume_db}dB,"
+        f"afade=t=out:st={total_duration - fade:.3f}:d={fade:.3f}"
     )
+    if duck:
+        filters += (
+            "[music];[1:a]apad[side];"
+            f"[music][side]sidechaincompress=threshold={threshold}:ratio=8:attack=5:release=400"
+        )
+    voice_input = ["-i", str(voice_path)] if duck else []
     return [
         "-stream_loop",
         "-1",
         "-i",
         str(music_path),
-        "-i",
-        str(voice_path),
+        *voice_input,
         "-filter_complex",
-        filters,
+        filters + "[ducked]",
         "-map",
         "[ducked]",
         "-t",
@@ -209,10 +220,25 @@ def build_final_encode_args(
     fade_seconds: float,
     total_duration: float,
     output_path: Path,
+    film_grain: int = 0,
+    vignette: bool = False,
 ) -> list[str]:
-    """Burn subtitles, apply fade in/out, and encode the final H.264/AAC mp4 in one pass."""
+    """Burn subtitles, apply fade in/out, and encode the final H.264/AAC mp4 in one pass.
+
+    `film_grain` > 0 adds moving luma grain, generated at half resolution and upscaled so it is
+    coarse like film grain; `vignette` darkens the corners. Both go under the subtitles, which
+    stay clean."""
     fade_out_start = max(0.0, total_duration - fade_seconds)
-    vf = (
+    film = ""
+    if film_grain > 0:
+        film += (
+            "split[base][g];[g]scale=iw/2:ih/2,lutyuv=y=128:u=128:v=128,"
+            f"noise=c0s={film_grain}:c0f=t,scale=iw*2:ih*2[grain];"
+            "[base][grain]blend=all_mode=grainmerge,"
+        )
+    if vignette:
+        film += "vignette=angle=PI/5,"
+    vf = film + (
         f"ass='{_escape_filter_path(ass_path)}':fontsdir='{_escape_filter_path(fonts_dir)}',"
         f"fade=t=in:st=0:d={fade_seconds},fade=t=out:st={fade_out_start:.3f}:d={fade_seconds}"
     )

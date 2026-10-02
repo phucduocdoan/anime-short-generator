@@ -30,6 +30,9 @@ def _character_list(characters: dict[str, Character]) -> str:
 
 WORDS_PER_SCENE_MIN = 13
 WORDS_PER_SCENE_MAX = 20
+# A quotes line is one sentence the viewer reads on screen, so lines are shorter.
+QUOTE_WORDS_PER_SCENE_MIN = 8
+QUOTE_WORDS_PER_SCENE_MAX = 14
 
 
 def target_words(content: ContentSpec, config: AppConfig) -> int:
@@ -44,8 +47,11 @@ def script_system(
     hook_words = max(3, round(config.script.hook_seconds * words_per_second))
     # Scene count follows the word target: the LLM writes ~15 words per scene no matter how many
     # it is asked for, so a long script needs more scenes rather than longer ones.
-    min_scenes = max(3, round(target / WORDS_PER_SCENE_MAX))
-    max_scenes = max(min_scenes + 1, round(target / WORDS_PER_SCENE_MIN))
+    quotes = content.format == "quotes"
+    words_min = QUOTE_WORDS_PER_SCENE_MIN if quotes else WORDS_PER_SCENE_MIN
+    words_max = QUOTE_WORDS_PER_SCENE_MAX if quotes else WORDS_PER_SCENE_MAX
+    min_scenes = max(3, round(target / words_max))
+    max_scenes = max(min_scenes + 1, round(target / words_min))
     scene_hint = f"{min_scenes}-{max_scenes} scenes"
     words_per_scene = round(target / ((min_scenes + max_scenes) / 2))
     character_instructions = (
@@ -53,7 +59,8 @@ def script_system(
         if need_characters
         else "- Do not invent new characters; the `characters` list must be empty.\n"
     )
-    return _load("script_system.txt").format(
+    template = "script_system_quotes.txt" if quotes else "script_system.txt"
+    return _load(template).format(
         duration_seconds=content.duration_seconds,
         language_name=_language_name(language),
         hook_words=hook_words,

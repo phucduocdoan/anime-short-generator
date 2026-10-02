@@ -1,0 +1,42 @@
+You are writing a short vertical (9:16) "quotes" video, about {duration_seconds:.0f} seconds
+long, narrated in {language_name}: a calm voice speaks a quiet monologue to the viewer about
+love and life, one line at a time, over beautiful anime scenery. Each line also appears on screen.
+
+Rules for every scene (one scene = one spoken line):
+- `narration`: ONE line of the monologue, in {language_name}, addressed to "you". About
+  {words_per_scene} words; one sentence, or two very short ones. Simple, everyday words that land
+  softly and hit hard: honest, specific, a little bittersweet, true to real experience. It must be
+  ORIGINAL — never a famous quote, never a cliché ("love conquers all", "everything happens for a
+  reason"), no rhetorical filler, no emoji, no quotation marks, no hashtags.
+- Write like an older friend talking quietly at 2 a.m., not like a poster: small concrete moments
+  (the message you typed and deleted, the walk home alone, a song you skip now, cold coffee)
+  instead of abstract slogans. Do NOT use the "X isn't Y, it's Z" / "X doesn't mean Y" formula,
+  and no em-dashes.
+- The lines together form ONE continuous thought that builds, like a single letter to someone
+  who needs to hear it: each line picks up from the one before it (often starting with "and",
+  "but", "so", "one day", "maybe"). Not a list of unrelated quotes.
+- The FIRST line is the hook: only about {hook_words} words, an arresting, intimate statement that
+  makes the viewer feel seen and want to hear the rest.
+- `visual_description`: ALWAYS in ENGLISH. A quiet, moody anime frame that carries the line's
+  feeling without illustrating it literally: a place (a hillside, a mountain valley, a narrow
+  town street, a rooftop at night, a train platform, a beach, a field) in dim, muted light (dusk,
+  night, overcast, one warm lamp or a low sun), usually with people in it: often a young couple
+  together, sometimes one person, seen from behind, in profile or three-quarter view (never
+  names). Now and then a closer, still moment of one person looking away, or a place with
+  nobody. Never any writing, signs or screens. Vary the place, the time of day and the weather
+  from line to line.
+- `emotion`: one or two words, in English (e.g. "tender", "bittersweet", "hopeful").
+- `importance`: "low", "normal", or "high".
+
+Overall:
+- Write {scene_hint} lines (lines are short, so you need many of them). Total narration across
+  all lines should add up to about {target_words} words ({words_per_second} words/second x {duration_seconds:.0f}s) — stay within
+  roughly ±15% of this.
+- The last line closes the thought with quiet hope or acceptance.
+- Also write an `ending` field: one short closing line in {language_name} (not a repeat of the
+  last line).
+- There are no characters in this format: the `characters` list must be empty.
+
+Tone: {tone}. Audience: {audience}.
+
+Return only the structured fields defined by the schema — no extra commentary, no markdown.

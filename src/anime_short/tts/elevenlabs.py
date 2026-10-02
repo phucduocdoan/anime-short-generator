@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import numpy as np
 
 from anime_short.schemas import AudioResult, VoiceSpec, WordTiming
 from anime_short.tts import audio
@@ -25,6 +26,12 @@ log = logging.getLogger(__name__)
 
 API_BASE_URL = "https://api.elevenlabs.io"
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+LINE_SEPARATOR = "\n\n"  # between lines read in one request: a paragraph break, a clear pause
+_ALIGNMENT_KEYS = (
+    "characters",
+    "character_start_times_seconds",
+    "character_end_times_seconds",
+)
 
 
 def alignment_to_words(alignment: dict[str, Any]) -> list[WordTiming]:
@@ -94,17 +101,41 @@ class ElevenLabsProvider:
         self._client.close()
 
     def synthesize(self, text: str, output_path: Path) -> AudioResult:
-        response = self._request(text)
-        data = response.json()
+        data = self._request(text).json()
         samples = audio.pcm16_to_float32(base64.b64decode(data["audio_base64"]))
-        words = alignment_to_words(data["alignment"])
+        return _write(samples, alignment_to_words(data["alignment"]), output_path)
 
-        trimmed, offset = audio.trim_silence(samples, audio.TARGET_SAMPLE_RATE)
-        trimmed_duration = trimmed.size / audio.TARGET_SAMPLE_RATE
-        words = audio.shift_words(words, offset, trimmed_duration)
+    def synthesize_script(self, texts: list[str], output_paths: list[Path]) -> list[AudioResult]:
+        """Read all lines in ONE request, so intonation and pacing carry from line to line as in
+        a single take, then cut the audio in the middle of the pause between consecutive lines."""
+        text = LINE_SEPARATOR.join(texts)
+        data = self._request(text).json()
+        samples = audio.pcm16_to_float32(base64.b64decode(data["audio_base64"]))
+        alignment = data["alignment"]
+        if "".join(alignment["characters"]) != text:
+            raise RuntimeError("elevenlabs: alignment does not match the requested text")
+        starts = alignment["character_start_times_seconds"]
+        ends = alignment["character_end_times_seconds"]
 
-        audio.write_wav(trimmed, audio.TARGET_SAMPLE_RATE, output_path)
-        return AudioResult(path=output_path, duration=probe_duration(output_path), words=words)
+        spans = []  # (first, last + 1) character index of each line in `text`
+        pos = 0
+        for line in texts:
+            spans.append((pos, pos + len(line)))
+            pos += len(line) + len(LINE_SEPARATOR)
+        cuts = [0.0]
+        for (_, end), (start, _) in zip(spans, spans[1:], strict=False):
+            cuts.append((ends[end - 1] + starts[start]) / 2)
+        cuts.append(samples.size / audio.TARGET_SAMPLE_RATE)
+
+        results = []
+        for i, ((first, last), path) in enumerate(zip(spans, output_paths, strict=True)):
+            lo, hi = (int(t * audio.TARGET_SAMPLE_RATE) for t in cuts[i : i + 2])
+            line_alignment = {key: alignment[key][first:last] for key in _ALIGNMENT_KEYS}
+            words = audio.shift_words(
+                alignment_to_words(line_alignment), cuts[i], (hi - lo) / audio.TARGET_SAMPLE_RATE
+            )
+            results.append(_write(samples[lo:hi], words, path))
+        return results
 
     def _request(self, text: str) -> httpx.Response:
         payload = {
@@ -142,3 +173,13 @@ class ElevenLabsProvider:
                 time.sleep(delay)
         assert last_error is not None
         raise last_error
+
+
+def _write(samples: np.ndarray, words: list[WordTiming], output_path: Path) -> AudioResult:
+    """Trim edge silence, shift `words` to match, fade the edges, write the WAV."""
+    trimmed, offset = audio.trim_silence(samples, audio.TARGET_SAMPLE_RATE)
+    trimmed = audio.fade_edges(trimmed, audio.TARGET_SAMPLE_RATE)
+    trimmed_duration = trimmed.size / audio.TARGET_SAMPLE_RATE
+    words = audio.shift_words(words, offset, trimmed_duration)
+    audio.write_wav(trimmed, audio.TARGET_SAMPLE_RATE, output_path)
+    return AudioResult(path=output_path, duration=probe_duration(output_path), words=words)
