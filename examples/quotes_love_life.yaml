@@ -57,3 +57,4 @@ music:
 render:
   film_grain: 14
   vignette: true
+  dust: 8

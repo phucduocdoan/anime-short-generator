@@ -468,3 +468,71 @@ def test_build_music_args_without_ducking_ignores_voice():
     assert "voice.wav" not in joined
     assert "volume=-15.0dB" in joined
     assert "afade=t=out:st=8.000:d=2.000[ducked]" in joined
+
+
+def test_build_final_encode_args_dust_goes_after_vignette_under_subtitles():
+    args = ff.build_final_encode_args(
+        Path("v.mp4"),
+        Path("a.wav"),
+        Path("subs.ass"),
+        Path("fonts"),
+        18,
+        "192k",
+        0.3,
+        9.0,
+        Path("out.mp4"),
+        vignette=True,
+        dust_path=Path("dust.mkv"),
+    )
+    vf = args[args.index("-vf") + 1]
+    assert "movie='dust.mkv'" in vf
+    assert vf.index("vignette") < vf.index("blend=c0_mode=multiply") < vf.index("ass=")
+
+
+def test_dust_frame_is_white_with_sparse_dark_specks():
+    import numpy as np
+
+    from anime_short.render.dust import dust_frame
+
+    empty = np.asarray(dust_frame(np.random.default_rng(0), 1080, 1920, 0))
+    assert empty.min() == 255
+
+    frames = [np.asarray(dust_frame(np.random.default_rng(s), 1080, 1920, 8)) for s in (1, 2)]
+    for frame in frames:
+        assert frame.min() < 128  # some specks are dark
+        assert (frame < 250).mean() < 0.01  # but they cover a tiny part of the frame
+    assert not np.array_equal(frames[0] < 250, frames[1] < 250)  # specks move between frames
+
+
+def _mean_luma(path: Path, at: float) -> float:
+    proc = subprocess.run(
+        [
+            CAPABLE,
+            "-hide_banner",
+            "-ss",
+            str(at),
+            "-i",
+            str(path),
+            "-vf",
+            "signalstats,metadata=print:key=lavfi.signalstats.YAVG",
+            "-frames:v",
+            "1",
+            "-f",
+            "null",
+            "-",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return float(proc.stderr.split("lavfi.signalstats.YAVG=")[1].split()[0])
+
+
+def test_render_dust_without_specks_keeps_brightness(tmp_path, config):
+    # White dust must multiply as 1: a gray video turns white into 235 when converted to yuv
+    project = _build_synthetic_project(tmp_path, config, with_words=True, with_music=False)
+    plain = compose(project, tmp_path, config).rename(tmp_path / "plain.mp4")
+    config.render.dust = 1e-9  # dust on, but (practically) no specks
+    dusty = compose(project, tmp_path, config)
+    assert (tmp_path / "output" / "_tmp" / "dust.mkv").exists()
+    assert _mean_luma(dusty, 2.0) == pytest.approx(_mean_luma(plain, 2.0), abs=0.5)

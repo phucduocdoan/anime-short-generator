@@ -7,8 +7,9 @@ from pathlib import Path
 from anime_short.config import FONTS_DIR, AppConfig
 from anime_short.render import ffmpeg as ff
 from anime_short.render.audio import build_final_audio
+from anime_short.render.dust import write_dust_video
 from anime_short.schemas import ProjectSpec
-from anime_short.utils.media import run_ffmpeg
+from anime_short.utils.media import probe_video, run_ffmpeg
 
 
 def total_timeline_duration(project: ProjectSpec) -> float:
@@ -37,6 +38,18 @@ def compose(project: ProjectSpec, project_dir: Path, config: AppConfig) -> Path:
     video = concat_shots(project, project_dir, out_dir)
     audio = build_final_audio(project, project_dir, config, total_duration, out_dir)
 
+    dust = None
+    if config.render.dust > 0:
+        probe = probe_video(video)
+        dust = write_dust_video(
+            out_dir / "dust.mkv",
+            probe.width,
+            probe.height,
+            round(probe.fps),
+            total_duration,
+            config.render.dust,
+        )
+
     ass_path = project_dir / "subtitles" / "final.ass"
     final_path = project_dir / "output" / "final.mp4"
     run_ffmpeg(
@@ -52,6 +65,7 @@ def compose(project: ProjectSpec, project_dir: Path, config: AppConfig) -> Path:
             final_path,
             film_grain=config.render.film_grain,
             vignette=config.render.vignette,
+            dust_path=dust,
         )
     )
     return final_path

@@ -222,11 +222,13 @@ def build_final_encode_args(
     output_path: Path,
     film_grain: int = 0,
     vignette: bool = False,
+    dust_path: Path | None = None,
 ) -> list[str]:
     """Burn subtitles, apply fade in/out, and encode the final H.264/AAC mp4 in one pass.
 
     `film_grain` > 0 adds moving luma grain, generated at half resolution and upscaled so it is
-    coarse like film grain; `vignette` darkens the corners. Both go under the subtitles, which
+    coarse like film grain; `vignette` darkens the corners; `dust_path` (a gray video, white
+    background) is multiplied onto the luma for old-film dust. All go under the subtitles, which
     stay clean."""
     fade_out_start = max(0.0, total_duration - fade_seconds)
     film = ""
@@ -238,6 +240,14 @@ def build_final_encode_args(
         )
     if vignette:
         film += "vignette=angle=PI/5,"
+    if dust_path is not None:
+        # gray -> yuv420p squeezes white to 235; stretch it back so white multiplies as 1
+        film += (
+            "format=yuv420p[film];"
+            f"movie='{_escape_filter_path(dust_path)}',format=yuv420p,"
+            "lutyuv=y='clip((val-16)*255/219\\,0\\,255)'[dust];"
+            "[film][dust]blend=c0_mode=multiply:c1_mode=normal:c2_mode=normal,"
+        )
     vf = film + (
         f"ass='{_escape_filter_path(ass_path)}':fontsdir='{_escape_filter_path(fonts_dir)}',"
         f"fade=t=in:st=0:d={fade_seconds},fade=t=out:st={fade_out_start:.3f}:d={fade_seconds}"

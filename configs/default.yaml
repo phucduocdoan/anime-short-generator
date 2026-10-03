@@ -89,6 +89,7 @@ render:
   fade_seconds: 0.3
   film_grain: 0      # moving film grain strength (0 = off; quotes videos use ~14)
   vignette: false
+  dust: 0            # old-film black dust specks per frame on average (0 = off; quotes use ~8)
 
 music:
   enabled: false

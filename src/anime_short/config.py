@@ -85,6 +85,7 @@ class RenderConfig(BaseModel):
     fade_seconds: float = 0.3
     film_grain: int = 0  # strength of moving film grain (ffmpeg `noise`), 0 = off
     vignette: bool = False
+    dust: float = 0  # old-film black dust specks per frame on average, 0 = off
 
 
 class MusicConfig(BaseModel):

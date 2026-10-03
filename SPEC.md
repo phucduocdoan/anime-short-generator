@@ -238,7 +238,9 @@ its own model in VRAM (~17 GB once loaded).
    loop/trim, `volume_db`, side-chain ducking under voice (`music.duck`, default true; false keeps
    the music at a constant `volume_db`), 2 s fade-out;
 4. optional film look under the subtitles: `render.film_grain` (moving luma grain, generated at
-   half resolution and upscaled; 0 = off) and `render.vignette`; settable from spec.yaml `render:`;
+   half resolution and upscaled; 0 = off), `render.vignette` and `render.dust` (old-film black
+   specks of random size at random spots, new ones every frame, on average `dust` per frame; drawn
+   into a gray video and multiplied onto the luma; 0 = off); settable from spec.yaml `render:`;
    burn ASS subtitles (`fontsdir` = `assets/fonts`);
 5. loudness normalise to −14 LUFS, true peak −1 dB;
 6. H.264 High, yuv420p, CRF 18, AAC 192k 48 kHz, `+faststart` → `output/final.mp4`.
