@@ -91,7 +91,8 @@ class RenderConfig(BaseModel):
 class MusicConfig(BaseModel):
     enabled: bool = False
     path: str | None = None  # a fixed track, used when no `provider` generates one
-    provider: str | None = None  # "acestep": the music stage generates a track per project
+    provider: str | None = None  # "library" or "acestep": the music stage sets a track per project
+    library: str = "assets/music/piano"  # folder of free tracks for `provider: library`
     volume_db: float = -22
     duck: bool = True  # lower the music under the voice; false = constant `volume_db`
     acestep: dict[str, Any] = {}

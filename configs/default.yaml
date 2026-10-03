@@ -94,7 +94,8 @@ render:
 music:
   enabled: false
   path: null
-  provider: null  # acestep: generate a track per project (music stage) instead of `path`
+  provider: null  # library: pick a track from `library` per project; acestep: generate one
+  library: assets/music/piano  # downloaded free tracks (YouTube Audio Library, Pixabay, CC0...)
   volume_db: -22
   duck: true  # false: music stays at volume_db, also while the voice speaks
   acestep:

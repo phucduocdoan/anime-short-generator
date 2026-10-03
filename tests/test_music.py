@@ -9,7 +9,9 @@ from anime_short.config import load_config
 from anime_short.music import stage
 from anime_short.music.acestep import AceStepClient
 from anime_short.render import audio
+from anime_short.render.ffmpeg import measure_loudness
 from anime_short.schemas import ContentSpec, ProjectSpec, Scene, Shot, VisualSpec
+from anime_short.utils.media import probe_duration, run_ffmpeg
 
 
 def make_project() -> ProjectSpec:
@@ -88,6 +90,55 @@ def test_run_music_generates_a_track_longer_than_the_video(tmp_path, monkeypatch
 
     stage.run_music(project, tmp_path, config)  # the track exists: skipped
     assert len(calls) == 1
+
+
+def _tone(path, seconds, volume, silence=0.0):
+    """A sine tone (lavfi amplitude 1/8, times `volume`) with `silence` seconds of silence
+    before and after it."""
+    pad = f"adelay={silence * 1000:.0f},apad=pad_dur={silence}"
+    run_ffmpeg(
+        ["-f", "lavfi", "-i", f"sine=frequency=440:duration={seconds}"]
+        + ["-af", f"volume={volume},{pad}", str(path)]
+    )
+
+
+def _lufs(path):
+    return float(measure_loudness(path, -16, -1.5)["input_i"])
+
+
+def test_run_music_levels_a_library_track_chosen_by_project_id(tmp_path, monkeypatch):
+    library = tmp_path / "lib"
+    library.mkdir()
+    _tone(library / "quiet.mp3", 3, 0.1, silence=2)  # peak -38 dBFS
+    _tone(library / "loud.WAV", 4, 6)  # peak -2.5 dBFS
+    (library / "notes.txt").write_text("not audio")
+    monkeypatch.setattr(stage, "REPO_ROOT", tmp_path)
+    config = load_config({"music": {"enabled": True, "provider": "library", "library": "lib"}})
+
+    durations = set()
+    for project_id in ("p1", "p2", "p3", "p4", "p5", "p6"):
+        project = make_project()
+        project.id = project_id
+        stage.run_music(project, tmp_path / project_id, config)
+        assert project.music == stage.LIBRARY_MUSIC_FILE
+        out = tmp_path / project_id / project.music
+        assert abs(_lufs(out) - stage.LIBRARY_LUFS) < 1.0
+        durations.add(round(probe_duration(out)))
+
+        again = make_project()
+        again.id = project_id
+        stage.run_music(again, tmp_path / "again", config)  # same project id: same track
+        assert round(probe_duration(tmp_path / "again" / again.music)) == round(probe_duration(out))
+    # both tracks get picked across projects; the quiet one without its 2 s of silence each side
+    assert durations == {3, 4}
+
+
+def test_run_music_library_without_tracks_fails(tmp_path, monkeypatch):
+    (tmp_path / "lib").mkdir()
+    monkeypatch.setattr(stage, "REPO_ROOT", tmp_path)
+    config = load_config({"music": {"enabled": True, "provider": "library", "library": "lib"}})
+    with pytest.raises(ValueError, match="no audio files"):
+        stage.run_music(make_project(), tmp_path / "p", config)
 
 
 def test_run_music_does_nothing_without_a_provider(tmp_path):

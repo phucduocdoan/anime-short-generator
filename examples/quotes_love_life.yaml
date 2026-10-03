@@ -50,7 +50,7 @@ subtitle:
 
 music:
   enabled: true
-  provider: acestep
+  provider: library
   volume_db: -15
   duck: false  # music stays at -15 dB under the voice too
 

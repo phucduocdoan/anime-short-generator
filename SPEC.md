@@ -223,7 +223,15 @@ when it starts being spoken and stays until the next line starts. No karaoke.
 
 ## 10b. Music
 
-`music/stage.py`, when `music.enabled` and `music.provider: acestep`: one instrumental track per
+`music/stage.py`, when `music.enabled` and `music.provider: library`: one track from the
+`music.library` folder (default `assets/music/piano`; free tracks downloaded by hand from e.g. the
+YouTube Audio Library or Pixabay, or CC0 tracks), chosen by a seed derived from the project id,
+stripped of leading/trailing silence and levelled to -16 LUFS (two-pass linear loudnorm;
+sources differ by 20+ dB) into
+`music/music.wav` and recorded in `project.music`; the render loops it when it is shorter than the
+video. Uses no GPU. Track sources and licences: `assets/music/piano/SOURCES.md`.
+
+With `music.provider: acestep`: one instrumental track per
 project from a local ACE-Step 1.5 server (`music.acestep.base_url`, `/release_task` →
 poll `/query_result` → download `/v1/audio`), `audio_duration` = video length + 8 s, seed derived
 from the project id, saved to `music/music.mp3` and recorded in `project.music`. The server holds
