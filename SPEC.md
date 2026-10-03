@@ -228,8 +228,9 @@ when it starts being spoken and stays until the next line starts. No karaoke.
 `music/stage.py`, when `music.enabled` and `music.provider: library`: one track from the
 `music.library` folder (default `assets/music/piano`; free tracks downloaded by hand from e.g. the
 YouTube Audio Library or Pixabay, or CC0 tracks), chosen by a seed derived from the project id,
-stripped of leading/trailing silence and levelled to -16 LUFS (two-pass linear loudnorm;
-sources differ by 20+ dB) into
+stripped of leading/trailing silence, downmixed to mono (as the render mixes; a wide stereo track
+loses up to ~8 dB there) and levelled to -16 LUFS (two-pass linear loudnorm; sources differ by
+20+ dB) into
 `music/music.wav` and recorded in `project.music`; the render loops it when it is shorter than the
 video. Uses no GPU. Track sources and licences: `assets/music/piano/SOURCES.md`.
 

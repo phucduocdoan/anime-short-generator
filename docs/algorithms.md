@@ -177,7 +177,7 @@ flowchart LR
 ```mermaid
 flowchart TD
     A["list audio files in music.library,\nsorted by name"] --> B["pick one via\nrandom.Random(deterministic_seed(project_id,'music')).choice(...)"]
-    B --> C["trim silence at both ends\n(silenceremove + areverse, applied twice)"]
+    B --> C["trim silence at both ends\n(silenceremove + areverse, applied twice),\ndownmix to mono"]
     C --> D["measure_loudness: ffmpeg loudnorm,\nanalysis pass -> measured stats JSON"]
     D --> E["build_loudnorm_apply_args: second ffmpeg pass,\nlinear=true, target -16 LUFS / -1.5 dBTP"]
     E --> F["write music/music.wav"]
@@ -185,7 +185,8 @@ flowchart TD
 
 This two-pass loudnorm levels tracks pulled from many different sources (which can differ by
 20+ dB) to the same loudness ACE-Step's own output roughly sits at, so `music.volume_db` means the
-same thing regardless of which track (or provider) was used.
+same thing regardless of which track (or provider) was used. It measures the mono downmix, since
+the render mixes in mono and a wide stereo track loses up to ~8 dB there (a narrow one ~3 dB).
 
 `music.provider: acestep` instead calls the ACE-Step REST API (`/release_task` then polling
 `/query_result` until `status == 1`) for `duration = total video length + 8s extra` (generated

@@ -4,6 +4,7 @@ import json
 
 import httpx
 import pytest
+import soundfile as sf
 
 from anime_short.config import load_config
 from anime_short.music import stage
@@ -92,13 +93,13 @@ def test_run_music_generates_a_track_longer_than_the_video(tmp_path, monkeypatch
     assert len(calls) == 1
 
 
-def _tone(path, seconds, volume, silence=0.0):
+def _tone(path, seconds, volume, silence=0.0, channels=1):
     """A sine tone (lavfi amplitude 1/8, times `volume`) with `silence` seconds of silence
     before and after it."""
     pad = f"adelay={silence * 1000:.0f},apad=pad_dur={silence}"
     run_ffmpeg(
         ["-f", "lavfi", "-i", f"sine=frequency=440:duration={seconds}"]
-        + ["-af", f"volume={volume},{pad}", str(path)]
+        + ["-af", f"volume={volume},{pad}", "-ac", str(channels), str(path)]
     )
 
 
@@ -110,7 +111,7 @@ def test_run_music_levels_a_library_track_chosen_by_project_id(tmp_path, monkeyp
     library = tmp_path / "lib"
     library.mkdir()
     _tone(library / "quiet.mp3", 3, 0.1, silence=2)  # peak -38 dBFS
-    _tone(library / "loud.WAV", 4, 6)  # peak -2.5 dBFS
+    _tone(library / "loud.WAV", 4, 6, channels=2)  # peak -2.5 dBFS
     (library / "notes.txt").write_text("not audio")
     monkeypatch.setattr(stage, "REPO_ROOT", tmp_path)
     config = load_config({"music": {"enabled": True, "provider": "library", "library": "lib"}})
@@ -123,6 +124,7 @@ def test_run_music_levels_a_library_track_chosen_by_project_id(tmp_path, monkeyp
         assert project.music == stage.LIBRARY_MUSIC_FILE
         out = tmp_path / project_id / project.music
         assert abs(_lufs(out) - stage.LIBRARY_LUFS) < 1.0
+        assert sf.info(out).channels == 1  # levelled as the render mixes it
         durations.add(round(probe_duration(out)))
 
         again = make_project()

@@ -21,7 +21,8 @@ log = logging.getLogger(__name__)
 MUSIC_FILE = "music/music.mp3"
 LIBRARY_MUSIC_FILE = "music/music.wav"
 # Library tracks come from many sources, 20+ dB apart; level them to about what ACE-Step makes
-# (-16 LUFS) so `music.volume_db` means the same for every track.
+# (-16 LUFS) so `music.volume_db` means the same for every track. Level in mono, as the render
+# mixes: a wide stereo track loses up to ~8 dB when downmixed, a narrow one ~3 dB.
 LIBRARY_LUFS = -16.0
 LIBRARY_TRUE_PEAK = -1.5
 _SILENCE = "silenceremove=start_periods=1:start_threshold=-50dB"
@@ -76,7 +77,7 @@ def pick_from_library(project_id: str, library: Path, project_dir: Path) -> str:
     # Downloaded tracks can open or close with seconds of silence: no music under the first
     # lines, or a gap where the render loops the track.
     trimmed = out.with_name("music_trimmed.wav")
-    run_ffmpeg(["-i", str(track), "-af", TRIM_SILENCE, str(trimmed)])
+    run_ffmpeg(["-i", str(track), "-af", TRIM_SILENCE, "-ac", "1", str(trimmed)])
     measured = ff.measure_loudness(trimmed, LIBRARY_LUFS, LIBRARY_TRUE_PEAK)
     run_ffmpeg(
         ff.build_loudnorm_apply_args(trimmed, measured, LIBRARY_LUFS, LIBRARY_TRUE_PEAK, out)
