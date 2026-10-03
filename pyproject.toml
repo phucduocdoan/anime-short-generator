@@ -13,6 +13,7 @@ dependencies = [
     "python-dotenv>=1",
     "numpy>=1.26",
     "pillow>=10",
+    "filelock>=3.12",
 ]
 
 [project.optional-dependencies]

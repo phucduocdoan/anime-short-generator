@@ -63,7 +63,11 @@ def resume(project_id: ProjectId) -> None:
 
 
 def _run(project_dir: Path) -> None:
-    project = runner.run_pending(project_dir)
+    try:
+        project = runner.run_pending(project_dir)
+    except runner.ProjectLocked as exc:
+        console.print(f"[red]{exc}[/]")
+        raise typer.Exit(code=1) from None
     if project.output:
         console.print(f"[green]done:[/] {project_dir / project.output}")
 
@@ -72,7 +76,11 @@ def _stage_command(stage: str) -> None:
     def command(project_id: ProjectId, force: Force = False) -> None:
         project_dir = _project_dir(project_id)
         config = runner.project_config(project_dir)
-        runner.run_stage(load_project(project_dir), project_dir, config, stage, force)
+        try:
+            runner.run_stage(load_project(project_dir), project_dir, config, stage, force)
+        except runner.ProjectLocked as exc:
+            console.print(f"[red]{exc}[/]")
+            raise typer.Exit(code=1) from None
 
     command.__doc__ = f"Run only the {stage!r} stage."
     app.command(name=stage)(command)

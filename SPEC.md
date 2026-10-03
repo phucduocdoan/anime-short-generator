@@ -59,6 +59,8 @@ Stages are batched (all images, then unload, then all videos) — never interlea
 
 `workspace/<project_id>/project.json` is the single source of truth. Every stage reads it, enriches it,
 and saves it after **each item** (atomic write: temp file + rename), so `resume` continues at item level.
+A project-level file lock (`pipeline/runner.py`) ensures only one `anime-short` process may run a
+stage against a given project at a time, failing fast instead of racing if another already is.
 
 The authoritative definitions live in `schemas.py`. Summary:
 

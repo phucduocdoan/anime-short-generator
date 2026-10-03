@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from filelock import FileLock
 from typer.testing import CliRunner
 
 from anime_short.config import load_config, load_yaml
@@ -142,3 +143,46 @@ def test_running_a_stage_resets_later_stages(workspace_config, monkeypatch, forc
     assert stages["plan"] == StageStatus.done
     assert stages["tts"] == StageStatus.done
     assert all(stages[s] == StageStatus.pending for s in STAGES[STAGES.index("tts") + 1 :])
+
+
+def test_run_stage_refuses_when_project_is_locked(workspace_config, monkeypatch):
+    # Simulate another anime-short process already holding the project lock (P0.1).
+    project, project_dir = runner.create_project({"content": {"topic": "t"}}, workspace_config)
+    before = load_project(project_dir)
+    monkeypatch.setattr(runner, "stage_function", lambda stage: lambda *a: None)
+
+    other_holder = FileLock(str(project_dir / runner.LOCK_FILE))
+    with (
+        other_holder.acquire(timeout=0),
+        pytest.raises(runner.ProjectLocked, match="t.*in use by another anime-short process"),
+    ):
+        runner.run_stage(project, project_dir, workspace_config, "tts")
+
+    assert load_project(project_dir) == before
+
+
+def test_run_pending_refuses_when_project_is_locked(workspace_config, monkeypatch):
+    project, project_dir = runner.create_project({"content": {"topic": "t"}}, workspace_config)
+    before = load_project(project_dir)
+    monkeypatch.setattr(runner, "stage_function", lambda stage: lambda *a: None)
+
+    other_holder = FileLock(str(project_dir / runner.LOCK_FILE))
+    with other_holder.acquire(timeout=0), pytest.raises(runner.ProjectLocked):
+        runner.run_pending(project_dir)
+
+    assert load_project(project_dir) == before
+
+
+def test_run_pending_locks_once_across_all_stages(workspace_config, monkeypatch):
+    # run_pending -> run_stage must reuse the same lock within one process (reentrant), not
+    # deadlock against itself, and must hold it for the whole multi-stage sequence.
+    runner.create_project({"content": {"topic": "t"}}, workspace_config)
+    project_dir = workspace_config.project_dir("t")
+
+    calls = []
+    monkeypatch.setattr(runner, "stage_function", lambda stage: lambda *a: calls.append(stage))
+
+    runner.run_pending(project_dir)
+
+    assert calls == list(STAGES)
+    assert load_project(project_dir).stages["render"] == StageStatus.done

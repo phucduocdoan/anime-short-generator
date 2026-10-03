@@ -37,7 +37,8 @@ image/video generation.
 
 - **`project.json` is the single source of truth.** Every stage reads the whole project state,
   does its work, writes the whole state back (atomically). There's no database, no per-stage
-  files to reconcile — see [docs/architecture.md](docs/architecture.md).
+  files to reconcile — see [docs/architecture.md](docs/architecture.md). A per-project file lock
+  stops two `anime-short` commands from running against the same project at once.
 - **Scene vs. shot.** A *scene* is one narration/audio segment; a *shot* is one visual. A scene
   has 1-n shots, split so no single shot exceeds a configured max length. TTS is never re-run to
   fix pacing — long scenes just get more shots.

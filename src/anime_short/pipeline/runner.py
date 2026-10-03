@@ -6,11 +6,13 @@ import importlib
 import logging
 import re
 import unicodedata
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
 import yaml
+from filelock import FileLock, Timeout
 
 from anime_short.config import AppConfig, load_config, load_yaml
 from anime_short.pipeline.state import init_project_dir, load_project, save_project
@@ -26,6 +28,12 @@ from anime_short.schemas import (
 log = logging.getLogger(__name__)
 
 SPEC_FILE = "spec.yaml"
+LOCK_FILE = ".lock"
+
+
+class ProjectLocked(RuntimeError):
+    """Raised when another anime-short process already holds this project's lock."""
+
 
 # stage -> "module:function"; imported lazily so the CLI does not pull in torch for every command.
 STAGE_FUNCTIONS: dict[str, str] = {
@@ -135,31 +143,54 @@ def create_project_from_file(spec_path: Path) -> tuple[ProjectSpec, Path]:
 # --- running ---------------------------------------------------------------------------------
 
 
+@contextmanager
+def _project_lock(project_dir: Path, stage: str | None = None) -> Iterator[None]:
+    """Exclusive, non-blocking lock for one project directory: two `anime-short` processes must
+    never run stages against the same project at once, or the later one's whole-document save
+    silently clobbers the other's changes (the `project.music` revert bug). Fails fast instead of
+    waiting, since a stuck lock from a killed process should be visible, not block forever.
+    `is_singleton=True` makes acquiring the "same" lock from several call sites in one process
+    (`run_pending` -> `run_stage`) reentrant, instead of the OS-level flock conflicting with itself.
+    """
+    lock = FileLock(str(project_dir / LOCK_FILE), is_singleton=True)
+    try:
+        with lock.acquire(timeout=0):
+            yield
+    except Timeout:
+        detail = f" (stage {stage!r})" if stage else ""
+        raise ProjectLocked(
+            f"project {project_dir.name!r} is in use by another anime-short process{detail}"
+        ) from None
+
+
 def run_stage(
     project: ProjectSpec, project_dir: Path, config: AppConfig, stage: str, force: bool = False
 ) -> None:
-    log.info("stage %s: start", stage)
-    # Any run may regenerate items (a missing or invalidated artifact, or all of them with --force),
-    # so every later stage must be re-checked; their own skips keep that cheap.
-    for later in STAGES[STAGES.index(stage) + 1 :]:
-        project.stages[later] = StageStatus.pending
-    try:
-        stage_function(stage)(project, project_dir, config, force)
-    except BaseException:
-        project.stages[stage] = StageStatus.failed
+    with _project_lock(project_dir, stage):
+        log.info("stage %s: start", stage)
+        # Any run may regenerate items (a missing or invalidated artifact, or all of them with
+        # --force), so every later stage must be re-checked; their own skips keep that cheap.
+        for later in STAGES[STAGES.index(stage) + 1 :]:
+            project.stages[later] = StageStatus.pending
+        try:
+            stage_function(stage)(project, project_dir, config, force)
+        except BaseException:
+            project.stages[stage] = StageStatus.failed
+            save_project(project, project_dir)
+            log.exception("stage %s: failed", stage)
+            raise
+        project.stages[stage] = StageStatus.done
         save_project(project, project_dir)
-        log.exception("stage %s: failed", stage)
-        raise
-    project.stages[stage] = StageStatus.done
-    save_project(project, project_dir)
-    log.info("stage %s: done", stage)
+        log.info("stage %s: done", stage)
 
 
 def run_pending(project_dir: Path, force: bool = False) -> ProjectSpec:
-    """Run every stage not marked done, in order (used by `generate` and `resume`)."""
-    config = project_config(project_dir)
-    project = load_project(project_dir)
-    for stage in STAGES:
-        if force or project.stages.get(stage) != StageStatus.done:
-            run_stage(project, project_dir, config, stage, force)
-    return project
+    """Run every stage not marked done, in order (used by `generate` and `resume`). Locked for the
+    whole sequence, not just per-stage, so another process can't slip in between two stages."""
+    with _project_lock(project_dir):
+        config = project_config(project_dir)
+        project = load_project(project_dir)
+        for stage in STAGES:
+            if force or project.stages.get(stage) != StageStatus.done:
+                run_stage(project, project_dir, config, stage, force)
+        return project

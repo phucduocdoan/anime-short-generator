@@ -112,9 +112,10 @@ a mix.
 reads the whole `ProjectSpec`, mutates part of it, and writes the whole thing back. Two stages (or
 two runs of the same stage) running at once would each load a consistent snapshot, make their own
 changes, and then one `save_project()` call would silently clobber the other's — there is no
-locking, merging, or per-field compare-and-swap. The CLI and `pipeline/runner.py` assume single-
-writer access; running `anime-short <stage> <project>` twice at once against the same project
-directory is unsupported and will lose data.
+merging or per-field compare-and-swap. `pipeline/runner.py` guards against this with a
+project-level `filelock.FileLock` (`workspace/<project_id>/.lock`) held for the whole stage, or the
+whole `run_pending` sequence: a second `anime-short <stage>`/`resume`/`generate` against the same
+project fails fast with a clear error instead of racing.
 
 All artifact paths stored in `project.json` are relative to the project directory, so the
 `workspace/` tree (gitignored) can be moved or renamed without editing the file.
