@@ -107,7 +107,9 @@ All paths stored **relative to the project dir**.
   love/life, one short original line per scene (~8–14 words, `templates/script_system_quotes.txt`),
   over moody, dimly lit retro anime frames; no character bible; the planner is told to show mostly
   wide/medium-wide shots with people (often a couple) seen from behind or in profile, keep the
-  middle of the frame calm for the overlaid line, and avoid bright/pastel wording.
+  middle of the frame calm for the overlaid line, and avoid bright/pastel wording. Motion is
+  cinemagraph-like: only one or two tiny ambient motions per shot (hair, grass, rain, steam,
+  light), people stay still, camera static or a slow push/pull.
 - `llm.reasoning_effort` (optional) is passed through for hosted reasoning models (e.g. Gemini's
   OpenAI-compatible endpoint), whose thinking otherwise eats `max_tokens`. A spec may override the
   whole `llm` section (the quotes example uses Gemini: the local 8B model writes generic English).

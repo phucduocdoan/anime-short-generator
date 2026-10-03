@@ -51,7 +51,7 @@ subtitle:
 music:
   enabled: true
   provider: library
-  volume_db: -15
+  volume_db: -9
   duck: false  # music stays at -15 dB under the voice too
 
 render:

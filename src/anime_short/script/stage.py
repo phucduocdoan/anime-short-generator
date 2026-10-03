@@ -44,7 +44,11 @@ QUOTES_PLAN_CONSTRAINTS = (
     "typography or captions in any field. Light is dim and muted: dusk, night, overcast, a single "
     "warm lamp or low sun; never write pastel, gradient, bright or minimalist. Name one dominant "
     "color in `lighting` and change it from shot to shot (navy blue with rust orange, dark teal, "
-    "forest green, olive and ochre, deep red-brown). `text` stays empty."
+    "forest green, olive and ochre, deep red-brown). `text` stays empty. The frames are almost "
+    "still, like a cinemagraph: `motion_prompt` names only one or two tiny ambient motions (hair "
+    "or clothes stirring, grass swaying, rain, steam, flickering light) and says the people stay "
+    "still; never walking, turning, gestures or vehicles moving. The camera is static or a slow "
+    "push_in / pull_out."
 )
 
 
