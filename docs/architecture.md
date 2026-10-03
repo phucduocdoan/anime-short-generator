@@ -8,12 +8,12 @@ stages, see [algorithms.md](algorithms.md).
 
 ```
 src/anime_short/
-├── cli.py              Typer CLI: generate, resume, one command per stage, status
-├── config.py            AppConfig (Pydantic): configs/default.yaml + spec.yaml overrides
-├── schemas.py            ProjectSpec data model; STAGES tuple; project.json's shape
+├── cli.py                 Typer CLI: generate, resume, one command per stage, status
+├── config.py              AppConfig (Pydantic): configs/default.yaml + spec.yaml overrides
+├── schemas.py             ProjectSpec data model; STAGES tuple; project.json's shape
 ├── pipeline/
-│   ├── runner.py         spec.yaml -> ProjectSpec; run_stage/run_pending orchestration
-│   ├── state.py          load_project/save_project (atomic write), init_project_dir
+│   ├── runner.py          spec.yaml -> ProjectSpec; run_stage/run_pending orchestration
+│   ├── state.py           load_project/save_project (atomic write), init_project_dir
 │   └── timeline.py        timeline stage: shot durations + absolute start times
 ├── script/
 │   ├── stage.py           script + plan stage entry points, replan_scene
@@ -23,34 +23,39 @@ src/anime_short/
 │   └── prompts.py         prompt templates for script/plan calls
 ├── tts/
 │   ├── stage.py           tts stage entry point, per-scene skip + whole-script override
-│   ├── gemini.py, elevenlabs.py, vieneu.py   one TTS provider each
+│   ├── gemini.py          TTS provider
+│   ├── elevenlabs.py      TTS provider
+│   ├── vieneu.py          TTS provider
 │   └── __init__.py        get_tts() factory (lazy imports)
 ├── image/
 │   ├── stage.py           images stage entry point, deterministic_seed(), stale-clear
 │   ├── prompt_builder.py  VisualSpec -> tags or natural-language prompt
-│   ├── anima.py, netayume.py, zanime.py, gemini.py   one image provider each
+│   ├── anima.py           image provider
+│   ├── netayume.py        image provider
+│   ├── zanime.py          image provider
+│   ├── gemini.py          image provider
 │   └── __init__.py        get_image_generator() factory (eager imports: torch always needed)
 ├── video/
 │   ├── stage.py           videos stage: animegen with VRAM gate, still_motion fallback
 │   ├── animegen.py        Wan2.2-I2V GPU provider
 │   ├── still_motion.py    CPU cinemagraph fallback provider
-│   └── postprocess.py      shared frame encoding/normalisation helpers
+│   └── postprocess.py     shared frame encoding/normalisation helpers
 ├── subtitle/
 │   ├── stage.py           subtitles stage entry point (whole-stage skip)
 │   ├── chunks.py          word/text grouping shared by both subtitle styles
-│   └── ass.py              ASS document builder (shorts vs quote style)
+│   └── ass.py             ASS document builder (shorts vs quote style)
 ├── music/
 │   ├── stage.py           music stage: library pick or ACE-Step generation
-│   └── acestep.py          ACE-Step REST API client
+│   └── acestep.py         ACE-Step REST API client
 ├── render/
 │   ├── stage.py           render stage entry point (whole-stage skip)
-│   ├── composer.py         orchestrates concat + audio + dust + final encode
-│   ├── audio.py            voice mix, ducking, two-pass loudnorm
-│   ├── ffmpeg.py           pure ffmpeg argument-list builders (no subprocess calls, mostly)
-│   └── dust.py              old-film dust overlay generator
+│   ├── composer.py        orchestrates concat + audio + dust + final encode
+│   ├── audio.py           voice mix, ducking, two-pass loudnorm
+│   ├── ffmpeg.py          pure ffmpeg argument-list builders (no subprocess calls, mostly)
+│   └── dust.py            old-film dust overlay generator
 └── utils/
-    ├── media.py            ffmpeg/ffprobe wrappers, binary resolution, probing
-    └── gpu.py               VRAM gating (gpu_session, free_vram_gb, InsufficientVRAM)
+    ├── media.py           ffmpeg/ffprobe wrappers, binary resolution, probing
+    └── gpu.py             VRAM gating (gpu_session, free_vram_gb, InsufficientVRAM)
 ```
 
 Orchestration is intentionally "dumb": `pipeline/runner.py` just looks up a stage name in a

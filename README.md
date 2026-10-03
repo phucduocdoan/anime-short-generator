@@ -115,20 +115,20 @@ intermediate artifact, ending in `output/final.mp4`.
 .
 ├── src/anime_short/     the package (see docs/architecture.md for a module-by-module map)
 ├── configs/
-│   ├── default.yaml      base config: providers, per-provider options, render/GPU settings
-│   └── styles/           named visual style bibles (prompt text + optional reference image)
-├── templates/             LLM prompt templates for the script/plan stages
-├── examples/               example spec.yaml files (story and quotes formats)
+│   ├── default.yaml     base config: providers, per-provider options, render/GPU settings
+│   └── styles/          named visual style bibles (prompt text + optional reference image)
+├── templates/           LLM prompt templates for the script/plan stages
+├── examples/            example spec.yaml files (story and quotes formats)
 ├── assets/
-│   ├── fonts/              subtitle fonts
-│   └── music/              local tracks for the `library` music provider
+│   ├── fonts/           subtitle fonts
+│   └── music/           local tracks for the `library` music provider
 ├── docs/
-│   ├── architecture.md      modules, provider pattern, project.json, stage invalidation, GPU gating
-│   └── algorithms.md         the non-trivial algorithm inside each stage, one diagram each
-├── tests/                  pytest suite (GPU/network tests are marked and skipped by default)
-├── scripts/                 one-off utility scripts (e.g. image-provider benchmarking)
-├── SPEC.md                  the module contract: pipeline stages, data model, config surface
-└── workspace/               (gitignored) one directory per generated project
+│   ├── architecture.md  modules, provider pattern, project.json, stage invalidation, GPU gating
+│   └── algorithms.md    the non-trivial algorithm inside each stage, one diagram each
+├── tests/               pytest suite (GPU/network tests are marked and skipped by default)
+├── scripts/             one-off utility scripts (e.g. image-provider benchmarking)
+├── SPEC.md              the module contract: pipeline stages, data model, config surface
+└── workspace/           (gitignored) one directory per generated project
 ```
 
 ## Further reading
