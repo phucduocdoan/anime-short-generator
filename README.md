@@ -48,22 +48,29 @@ image/video generation.
 
 ```mermaid
 flowchart LR
-    Spec["spec.yaml\n(or --topic)"] --> Script[script] --> Plan[plan] --> TTS[tts]
-    TTS --> Timeline[timeline] --> Images[images] --> Videos[videos]
-    Videos --> Subtitles[subtitles] --> Music[music] --> Render[render]
-    Render --> Final["output/final.mp4"]
+    Spec(["spec.yaml"])
 
-    PJ[("project.json")]
-    Script -. read + write .-> PJ
-    Plan -. read + write .-> PJ
-    TTS -. read + write .-> PJ
-    Timeline -. read + write .-> PJ
-    Images -. read + write .-> PJ
-    Videos -. read + write .-> PJ
-    Subtitles -. read + write .-> PJ
-    Music -. read + write .-> PJ
-    Render -. read + write .-> PJ
+    subgraph Words["1 · Words — LLM"]
+        direction TB
+        Script["script<br/>one line per scene"] --> Plan["plan<br/>shots + image / motion prompts"]
+    end
+    subgraph Voice["2 · Voice and timing"]
+        direction TB
+        TTS["tts<br/>audio/*.wav"] --> Timeline["timeline<br/>shot lengths follow the voice"]
+    end
+    subgraph Pictures["3 · Pictures — GPU"]
+        direction TB
+        Images["images<br/>images/*.png"] --> Videos["videos<br/>clips/*.mp4"]
+    end
+    subgraph Assemble["4 · Assemble"]
+        direction TB
+        Subtitles["subtitles<br/>final.ass"] --> Music["music<br/>music.wav"] --> Render["render<br/>ffmpeg"]
+    end
+
+    Spec --> Words --> Voice --> Pictures --> Assemble --> Final(["output/final.mp4"])
 ```
+
+Every stage reads `project.json`, adds its result, and writes it back.
 
 For the algorithms running *inside* each stage (shot planning, TTS pause-splitting, deterministic
 seeds, music/render ffmpeg chains, the dust overlay, subtitle chunking), see
