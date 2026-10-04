@@ -219,13 +219,16 @@ the same two-pass loudnorm as the music-library step, targeting `render.loudness
 ```mermaid
 flowchart LR
     A["'Japanese anime style'"] --> E["comma-joined text_prompt"]
-    B["camera phrase, e.g.\n'camera slowly pushes in'"] --> E
+    B["'camera holds steady'\n(always)"] --> E
     C["shot.motion_prompt\n(from the plan stage)"] --> E
     D["'any screens, writing and graphics\nstay exactly the same and do not change'"] --> E
 ```
 
-The camera phrase comes from a fixed lookup table (`_CAMERA_PHRASE`), one entry per `CameraMove`
-enum value. The trailing "stable content" clause exists because, with `cfg=1.0` (CFG effectively
+The model is always asked for a static camera: asked to push in or pan, it redraws the scene and
+invents events that are not in the keyframe. The shot's `CameraMove` is applied in post instead
+(`camera_move_frames`): the generated frames are cover-cropped to 9:16 and every output frame is
+one Lanczos resample of the float crop box from still_motion's `camera_boxes` (below), picking the
+generated frame for that time (16→24 fps, slowed down if the clip is shorter than the shot). The trailing "stable content" clause exists because, with `cfg=1.0` (CFG effectively
 ignoring the negative prompt), the model otherwise invents gibberish text/graphics on any
 screen-like surface the motion prompt asks to animate. A fixed `NEGATIVE_PROMPT = "3d, cg, photo,
 stop, wait"` is still sent (for configurations where cfg isn't 1.0). Frame count is

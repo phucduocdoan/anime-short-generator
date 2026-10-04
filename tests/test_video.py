@@ -24,9 +24,10 @@ from anime_short.schemas import (
 from anime_short.utils.gpu import InsufficientVRAM
 from anime_short.utils.media import probe_video
 from anime_short.video import stage as stage_mod
-from anime_short.video.postprocess import encode_raw_frames, normalize_clip, target_frame_count
+from anime_short.video.animegen import camera_move_frames
+from anime_short.video.postprocess import encode_raw_frames, target_frame_count
 from anime_short.video.stage import run_videos
-from anime_short.video.still_motion import StillMotionGenerator
+from anime_short.video.still_motion import StillMotionGenerator, camera_boxes
 
 # --- postprocess ---------------------------------------------------------------------------
 
@@ -53,22 +54,6 @@ def test_encode_raw_frames_produces_expected_video(tmp_path: Path):
     assert probe.fps == fps
     assert not probe.has_audio
     assert abs(probe.duration - n_frames / fps) < 0.05
-
-
-def test_normalize_clip_stretches_short_source_to_duration(tmp_path: Path):
-    # animegen caps at 81 frames @16fps (~5.06s); a 5.5s shot must still get a full-length clip.
-    src = tmp_path / "src.mp4"
-    encode_raw_frames((np.zeros((96, 64, 3), np.uint8) for _ in range(16)), src, 64, 96, 16)
-
-    result = normalize_clip(src, tmp_path / "out.mp4", 120, 160, 24, 1.5)
-
-    assert result.duration == pytest.approx(36 / 24)
-    probe = probe_video(tmp_path / "out.mp4")
-    assert (probe.width, probe.height) == (120, 160)
-    assert probe.duration == pytest.approx(1.5, abs=0.05)
-
-
-# --- still_motion ---------------------------------------------------------------------------
 
 
 def _make_keyframe(path: Path) -> Path:
@@ -102,11 +87,10 @@ def test_still_motion_generates_normalized_clip(tmp_path: Path, camera):
 
 @pytest.mark.parametrize("oversample", [1.0, 1.4, 2.0])
 def test_still_motion_framing_starts_from_whole_keyframe(oversample):
-    generator = StillMotionGenerator({"oversample": oversample}, width=1080, height=1920)
     canvas_w, canvas_h = round(1080 * oversample), round(1920 * oversample)
 
-    push_in = generator._boxes(canvas_w, canvas_h, CameraMove.push_in, 24)
-    pull_out = generator._boxes(canvas_w, canvas_h, CameraMove.pull_out, 24)
+    push_in = camera_boxes(canvas_w, canvas_h, CameraMove.push_in, 24)
+    pull_out = camera_boxes(canvas_w, canvas_h, CameraMove.pull_out, 24)
 
     whole = (0.0, 0.0, canvas_w, canvas_h)
     assert push_in[0] == pytest.approx(whole)
@@ -115,6 +99,21 @@ def test_still_motion_framing_starts_from_whole_keyframe(oversample):
     left, top, right, bottom = push_in[-1]
     assert (right - left) / canvas_w == pytest.approx(1 / 1.12)
     assert (bottom - top) / canvas_h == pytest.approx(1 / 1.12)
+
+
+def test_animegen_camera_move_in_post_fills_shot_from_generated_frames():
+    # 17 generated frames @16fps (1s), each a flat grey of its own index; 2s shot @24fps.
+    frames = [np.full((96, 52, 3), k * 10, np.uint8) for k in range(17)]
+
+    out = list(camera_move_frames(frames, CameraMove.push_in, 54, 96, 24, 16, 48))
+
+    assert len(out) == 48
+    assert all(frame.shape == (96, 54, 3) for frame in out)
+    # slowed down to fill the shot: starts on the first generated frame, ends on the last
+    assert out[0].mean() == pytest.approx(0, abs=1)
+    assert out[-1].mean() == pytest.approx(160, abs=1)
+    means = [frame.mean() for frame in out]
+    assert means == sorted(means)
 
 
 # --- stage: skip / force / fallback -----------------------------------------------------------

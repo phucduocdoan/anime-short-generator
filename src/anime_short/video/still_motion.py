@@ -65,6 +65,64 @@ def _vignette_mask(width: int, height: int, strength: float) -> np.ndarray:
     return (1.0 - strength * r**2).astype(np.float32)
 
 
+def _path(t: float, camera: CameraMove) -> tuple[float, float, float]:
+    """Return (zoom, px, py) for progress `t` in [0, 1]. px/py are normalised pan offsets in
+    [-1, 1] (0 = centred) applied against the margin available at that zoom level."""
+    eased = _ease_in_out(t)
+    if camera == CameraMove.push_in:
+        return 1.0 + ZOOM_RANGE * eased, 0.0, 0.0
+    if camera == CameraMove.pull_out:
+        return (1.0 + ZOOM_RANGE) - ZOOM_RANGE * eased, 0.0, 0.0
+    if camera == CameraMove.pan_left:
+        return 1.0 + PAN_ZOOM, 1.0 - 2.0 * eased, 0.0
+    if camera == CameraMove.pan_right:
+        return 1.0 + PAN_ZOOM, -1.0 + 2.0 * eased, 0.0
+    if camera == CameraMove.tilt_up:
+        return 1.0 + PAN_ZOOM, 0.0, 1.0 - 2.0 * eased
+    if camera == CameraMove.tilt_down:
+        return 1.0 + PAN_ZOOM, 0.0, -1.0 + 2.0 * eased
+    # static: nothing should be fully frozen -> very slow push-in
+    return 1.0 + STATIC_ZOOM_RANGE * eased, 0.0, 0.0
+
+
+def _secondary(t: float, camera: CameraMove) -> tuple[float, float]:
+    """Gentle breathing/drift, on top of the primary path. A single smooth hump
+    (sin(pi*t)^2: zero value AND zero velocity at both ends, like `_ease_in_out`) so it never
+    fights the primary move's ease-in/out with a competing velocity at the boundary."""
+    hump = math.sin(math.pi * t) ** 2
+    if camera in (CameraMove.pan_left, CameraMove.pan_right):
+        return 0.0, DRIFT_NORM * hump  # drift on the axis the pan isn't using
+    if camera in (CameraMove.tilt_up, CameraMove.tilt_down):
+        return DRIFT_NORM * hump, 0.0
+    return DRIFT_NORM * hump, DRIFT_NORM * 0.6 * math.cos(math.pi * t)
+
+
+def camera_boxes(
+    canvas_w: float, canvas_h: float, camera: CameraMove, n_frames: int
+) -> list[tuple[float, float, float, float]]:
+    """Precompute the (left, top, right, bottom) source crop box for every frame of the shot's
+    camera move. Cheap and sequential, so per-frame rendering can be parallelised afterwards.
+    Also used by animegen, which applies the camera move to the generated frames in post."""
+    canvas_cx, canvas_cy = canvas_w / 2, canvas_h / 2
+    boxes = []
+    for i in range(n_frames):
+        t = i / (n_frames - 1) if n_frames > 1 else 0.0
+        zoom, px, py = _path(t, camera)
+        zoom *= 1.0 + BREATH_AMPLITUDE * math.sin(math.pi * t) ** 2
+        drift_x, drift_y = _secondary(t, camera)
+        px = max(-1.0, min(1.0, px + drift_x))
+        py = max(-1.0, min(1.0, py + drift_y))
+
+        # zoom 1 = the whole canvas (whole keyframe); oversample only adds resampling headroom
+        box_w, box_h = canvas_w / zoom, canvas_h / zoom
+        margin_x = max(0.0, (canvas_w - box_w) / 2)
+        margin_y = max(0.0, (canvas_h - box_h) / 2)
+        cx = canvas_cx + px * margin_x
+        cy = canvas_cy + py * margin_y
+        boxes.append((cx - box_w / 2, cy - box_h / 2, cx + box_w / 2, cy + box_h / 2))
+    return boxes
+
+
 class StillMotionGenerator:
     """Fallback `VideoGenerator` (SPEC §7.2). CPU only."""
 
@@ -91,66 +149,11 @@ class StillMotionGenerator:
     def unload(self) -> None:
         pass
 
-    def _path(self, t: float, camera: CameraMove) -> tuple[float, float, float]:
-        """Return (zoom, px, py) for progress `t` in [0, 1]. px/py are normalised pan offsets in
-        [-1, 1] (0 = centred) applied against the margin available at that zoom level."""
-        eased = _ease_in_out(t)
-        if camera == CameraMove.push_in:
-            return 1.0 + ZOOM_RANGE * eased, 0.0, 0.0
-        if camera == CameraMove.pull_out:
-            return (1.0 + ZOOM_RANGE) - ZOOM_RANGE * eased, 0.0, 0.0
-        if camera == CameraMove.pan_left:
-            return 1.0 + PAN_ZOOM, 1.0 - 2.0 * eased, 0.0
-        if camera == CameraMove.pan_right:
-            return 1.0 + PAN_ZOOM, -1.0 + 2.0 * eased, 0.0
-        if camera == CameraMove.tilt_up:
-            return 1.0 + PAN_ZOOM, 0.0, 1.0 - 2.0 * eased
-        if camera == CameraMove.tilt_down:
-            return 1.0 + PAN_ZOOM, 0.0, -1.0 + 2.0 * eased
-        # static: nothing should be fully frozen -> very slow push-in
-        return 1.0 + STATIC_ZOOM_RANGE * eased, 0.0, 0.0
-
-    def _secondary(self, t: float, camera: CameraMove) -> tuple[float, float]:
-        """Gentle breathing/drift, on top of the primary path. A single smooth hump
-        (sin(pi*t)^2: zero value AND zero velocity at both ends, like `_ease_in_out`) so it never
-        fights the primary move's ease-in/out with a competing velocity at the boundary."""
-        hump = math.sin(math.pi * t) ** 2
-        if camera in (CameraMove.pan_left, CameraMove.pan_right):
-            return 0.0, DRIFT_NORM * hump  # drift on the axis the pan isn't using
-        if camera in (CameraMove.tilt_up, CameraMove.tilt_down):
-            return DRIFT_NORM * hump, 0.0
-        return DRIFT_NORM * hump, DRIFT_NORM * 0.6 * math.cos(math.pi * t)
-
-    def _boxes(
-        self, canvas_w: int, canvas_h: int, camera: CameraMove, n_frames: int
-    ) -> list[tuple[float, float, float, float]]:
-        """Precompute the (left, top, right, bottom) source crop box for every frame. Cheap and
-        sequential - this is what a smoothness check inspects, and it must run before the
-        per-frame rendering can be parallelised below."""
-        canvas_cx, canvas_cy = canvas_w / 2, canvas_h / 2
-        boxes = []
-        for i in range(n_frames):
-            t = i / (n_frames - 1) if n_frames > 1 else 0.0
-            zoom, px, py = self._path(t, camera)
-            zoom *= 1.0 + BREATH_AMPLITUDE * math.sin(math.pi * t) ** 2
-            drift_x, drift_y = self._secondary(t, camera)
-            px = max(-1.0, min(1.0, px + drift_x))
-            py = max(-1.0, min(1.0, py + drift_y))
-
-            # zoom 1 = the whole canvas (whole keyframe); oversample only adds resampling headroom
-            box_w, box_h = canvas_w / zoom, canvas_h / zoom
-            margin_x = max(0.0, (canvas_w - box_w) / 2)
-            margin_y = max(0.0, (canvas_h - box_h) / 2)
-            cx = canvas_cx + px * margin_x
-            cy = canvas_cy + py * margin_y
-            boxes.append((cx - box_w / 2, cy - box_h / 2, cx + box_w / 2, cy + box_h / 2))
-        return boxes
-
     def _frames(
         self, canvas: Image.Image, camera: CameraMove, n_frames: int, seed: int
     ) -> list[np.ndarray]:
         canvas_w, canvas_h = canvas.size
-        boxes = self._boxes(canvas_w, canvas_h, camera, n_frames)
+        boxes = camera_boxes(canvas_w, canvas_h, camera, n_frames)
         vignette = _vignette_mask(self.width, self.height, self.vignette_strength)
         grain_sigma = self.grain * 255.0
         # One independent RNG stream per frame (not one shared generator) so the thread pool

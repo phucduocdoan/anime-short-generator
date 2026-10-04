@@ -110,8 +110,9 @@ All paths stored **relative to the project dir**.
   over moody, dimly lit retro anime frames; no character bible; the planner is told to show mostly
   wide/medium-wide shots with people (often a couple) seen from behind or in profile, keep the
   middle of the frame calm for the overlaid line, and avoid bright/pastel wording. Motion is
-  cinemagraph-like: only one or two tiny ambient motions per shot (hair, grass, rain, steam,
-  light), people stay still, camera static or a slow push/pull.
+  cinemagraph-like: nothing in the keyframe appears, disappears or happens; one or two clear,
+  continuous ambient motions per shot (waves, hair/clothes in the wind, grass, rain, steam,
+  light); people stand or sit in place (never drawn mid-stride); camera static or a slow push/pull.
 - `llm.reasoning_effort` (optional) is passed through for hosted reasoning models (e.g. Gemini's
   OpenAI-compatible endpoint), whose thinking otherwise eats `max_tokens`. A spec may override the
   whole `llm` section (the quotes example uses Gemini: the local 8B model writes generic English).
@@ -169,13 +170,16 @@ Seeds: deterministic per shot (hash of project id + shot id) unless set.
 1. `animegen` (`aidealab/AnimeGen-I2V`, WanImageToVideoPipeline + Wan2.2 Lightning 4-step LoRA,
    CFG 1, 16 fps, frames = 4n+1 ≥ duration·16, max 81). Resolution 480×832 (default) or 720×1280.
    Use fp8 layerwise casting + model CPU offload to fit in shared VRAM.
-   Prompt: `Japanese anime style, <camera phrase>, <motion_prompt>, any screens, writing and
-   graphics stay exactly the same and do not change` (CFG 1 ignores the negative prompt).
+   Prompt: `Japanese anime style, camera holds steady, <motion_prompt>, any screens, writing and
+   graphics stay exactly the same and do not change` (CFG 1 ignores the negative prompt). The model
+   is never asked to move the camera: it then redraws the scene and invents events that are not in
+   the keyframe. The shot's `camera` move is applied in post instead (same path as `still_motion`).
    **VRAM gate:** before loading, if free VRAM < `video.animegen.min_free_vram_gb`, do not load;
    the stage falls back to `still_motion` for all shots and logs why.
    Shots with `visual.text`, or a screen in a close-up or in the foreground, always use `still_motion`:
    i2v rewrites screens and writing into gibberish.
-   Postprocess: trim to duration, 16→project fps, lanczos upscale to 1080×1920.
+   Postprocess: per output frame, pick the generated frame (16→project fps, slowed down if the clip
+   is shorter than the shot) and Lanczos-resample the camera move's float crop box to 1080×1920.
 2. `still_motion` (fallback, CPU only, must look alive, not a slideshow):
    - smooth sub-pixel camera move driven by `shot.camera` with ease-in-out (no zoompan jitter:
      render from an oversampled source or float crops),

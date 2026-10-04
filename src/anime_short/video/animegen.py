@@ -5,13 +5,17 @@ as shown on the model card (https://huggingface.co/aidealab/AnimeGen-I2V).
 VRAM is shared with other services (SPEC §1/§12): fp8 layerwise casting on both transformer
 experts plus `enable_model_cpu_offload()` keep the resident footprint small; `video/stage.py` is
 still responsible for the `min_free_vram_gb` gate before `load()` is ever called.
+
+The model is always asked for a static camera. Asked to move the camera, it redraws the scene and
+invents events that are not in the keyframe; held steady, it only adds the ambient motion from the
+prompt. The shot's camera move is then applied in post, with the same path as still_motion.
 """
 
 from __future__ import annotations
 
 import math
-import tempfile
 import zlib
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +24,7 @@ from PIL import Image
 
 from anime_short.schemas import CameraMove, VideoResult
 from anime_short.video import postprocess
+from anime_short.video.still_motion import camera_boxes
 
 WAN_BASE_REPO = "Wan-AI/Wan2.2-I2V-A14B-Diffusers"
 LIGHTNING_REPO = "lightx2v/Wan2.2-Lightning"
@@ -29,15 +34,36 @@ NEGATIVE_PROMPT = "3d, cg, photo, stop, wait"
 # screens and graphics that the motion prompt asks to change (checked on real clips).
 STABLE_CONTENT = "any screens, writing and graphics stay exactly the same and do not change"
 
-_CAMERA_PHRASE = {
-    CameraMove.static: "camera holds steady",
-    CameraMove.push_in: "camera slowly pushes in",
-    CameraMove.pull_out: "camera slowly pulls out",
-    CameraMove.pan_left: "camera pans left",
-    CameraMove.pan_right: "camera pans right",
-    CameraMove.tilt_up: "camera tilts up",
-    CameraMove.tilt_down: "camera tilts down",
-}
+STATIC_CAMERA = "camera holds steady"
+
+
+def camera_move_frames(
+    frames: list[np.ndarray],
+    camera: CameraMove,
+    width: int,
+    height: int,
+    fps: int,
+    native_fps: int,
+    n_frames: int,
+) -> Iterator[np.ndarray]:
+    """Yield `n_frames` `width`x`height` frames at `fps` from the generated `frames` (uint8 RGB at
+    `native_fps`), cover-cropped to the output aspect with the shot's camera move. Each output
+    frame is one Lanczos resample of a float crop box, so the move is sub-pixel smooth. A
+    generated clip shorter than the shot is slowed down to fill it."""
+    src_h, src_w = frames[0].shape[:2]
+    scale = max(width / src_w, height / src_h)
+    crop_w, crop_h = width / scale, height / scale
+    off_x, off_y = (src_w - crop_w) / 2, (src_h - crop_h) / 2
+    boxes = camera_boxes(crop_w, crop_h, camera, n_frames)
+
+    src_span = (len(frames) - 1) / native_fps
+    out_span = (n_frames - 1) / fps
+    speed = min(1.0, src_span / out_span) if out_span > 0 else 1.0
+    images = [Image.fromarray(frame) for frame in frames]
+    for i, (left, top, right, bottom) in enumerate(boxes):
+        j = min(len(images) - 1, round(i / fps * native_fps * speed))
+        box = (left + off_x, top + off_y, right + off_x, bottom + off_y)
+        yield np.asarray(images[j].resize((width, height), Image.LANCZOS, box=box))
 
 
 class AnimeGenGenerator:
@@ -152,9 +178,7 @@ class AnimeGenGenerator:
         source = source.resize((width, height))
 
         text_prompt = ", ".join(
-            part
-            for part in ("Japanese anime style", _CAMERA_PHRASE[camera], prompt, STABLE_CONTENT)
-            if part
+            part for part in ("Japanese anime style", STATIC_CAMERA, prompt, STABLE_CONTENT) if part
         )
         seed = zlib.crc32(str(output_path).encode()) & 0xFFFFFFFF
         rng = torch.Generator(device="cuda").manual_seed(seed)
@@ -172,19 +196,11 @@ class AnimeGenGenerator:
         )
         frames = result.frames[0]  # list of per-frame arrays (float32 RGB in [0, 1])
 
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(
-            suffix=".mp4", dir=output_path.parent, delete=False
-        ) as tmp:
-            tmp_path = Path(tmp.name)
-        try:
-            # Encode the raw pipeline output ourselves (no OpenCV/imageio dependency needed):
-            # `postprocess.encode_raw_frames` already pipes uint8 RGB frames straight to the
-            # project's configured ffmpeg, same as still_motion does.
-            uint8_frames = (np.clip(f * 255.0, 0, 255).astype(np.uint8) for f in frames)
-            postprocess.encode_raw_frames(uint8_frames, tmp_path, width, height, self.native_fps)
-            return postprocess.normalize_clip(
-                tmp_path, output_path, self.width, self.height, self.fps, duration
-            )
-        finally:
-            tmp_path.unlink(missing_ok=True)
+        uint8_frames = [np.clip(f * 255.0, 0, 255).astype(np.uint8) for f in frames]
+        n_frames = max(1, postprocess.target_frame_count(duration, self.fps))
+        out_frames = camera_move_frames(
+            uint8_frames, camera, self.width, self.height, self.fps, self.native_fps, n_frames
+        )
+        return postprocess.encode_raw_frames(
+            out_frames, output_path, self.width, self.height, self.fps
+        )

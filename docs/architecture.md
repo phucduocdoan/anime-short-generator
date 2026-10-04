@@ -39,7 +39,7 @@ src/anime_short/
 │   ├── stage.py           videos stage: animegen with VRAM gate, still_motion fallback
 │   ├── animegen.py        Wan2.2-I2V GPU provider
 │   ├── still_motion.py    CPU cinemagraph fallback provider
-│   └── postprocess.py     shared frame encoding/normalisation helpers
+│   └── postprocess.py     shared frame encoding helpers
 ├── subtitle/
 │   ├── stage.py           subtitles stage entry point (whole-stage skip)
 │   ├── chunks.py          word/text grouping shared by both subtitle styles
