@@ -23,6 +23,54 @@ def build_concat_video_args(list_path: Path, output_path: Path) -> list[str]:
     return ["-f", "concat", "-safe", "0", "-i", str(list_path), "-c", "copy", str(output_path)]
 
 
+def build_crossfade_video_args(
+    paths: list[Path], durations: list[float], transition: float, fps: int, output_path: Path
+) -> list[str]:
+    """Join clips with a `transition`-second crossfade that ends exactly on each cut, so cut times
+    and total length match a plain concat and the fade sits in the pause before the next line.
+    The incoming clip holds its first frame during the fade (`tpad`); every camera move starts
+    at zero velocity, so it then starts moving without a jolt."""
+    args: list[str] = []
+    for path in paths:
+        args += ["-i", str(path)]
+    # xfade needs an explicit constant frame rate on both inputs (tpad drops it). Each incoming
+    # clip also gets one cloned frame at the end: without it ffmpeg 7's chained xfade comes out
+    # one frame short per cut; with it, one frame long overall, which `-frames:v` trims.
+    pad = round(transition * fps)
+    filters = [f"[0:v]setpts=PTS-STARTPTS,fps={fps}[x0]"]
+    offset = 0.0
+    for i in range(1, len(paths)):
+        offset += durations[i - 1]
+        filters.append(
+            f"[{i}:v]tpad=start={pad}:stop=1:start_mode=clone:stop_mode=clone,"
+            f"setpts=PTS-STARTPTS,fps={fps}[c{i}]"
+        )
+        filters.append(
+            f"[x{i - 1}][c{i}]xfade=transition=fade:duration={pad / fps:.6f}:"
+            f"offset={offset - pad / fps:.6f}[x{i}]"
+        )
+    return [
+        *args,
+        "-filter_complex",
+        ";".join(filters),
+        "-map",
+        f"[x{len(paths) - 1}]",
+        "-frames:v",
+        str(round(sum(durations) * fps)),
+        # intermediate, re-encoded by the final encode: near-lossless and fast
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "8",
+        "-pix_fmt",
+        "yuv420p",
+        "-an",
+        str(output_path),
+    ]
+
+
 def build_voice_mix_args(
     voice_paths: list[Path], starts: list[float], total_duration: float, output_path: Path
 ) -> list[str]:

@@ -6,6 +6,7 @@ import subprocess
 import wave
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from anime_short.config import AppConfig, load_config
@@ -26,7 +27,7 @@ from anime_short.schemas import (
     WordTiming,
 )
 from anime_short.subtitle.stage import run_subtitles
-from anime_short.utils.media import check_ffmpeg, probe_duration, probe_video
+from anime_short.utils.media import check_ffmpeg, probe_duration, probe_video, run_ffmpeg
 
 # --- pure arg builders ---------------------------------------------------------------------
 
@@ -44,6 +45,37 @@ def test_write_concat_file(tmp_path):
 def test_build_concat_video_args():
     args = ff.build_concat_video_args(Path("list.txt"), Path("out.mp4"))
     assert args == ["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "out.mp4"]
+
+
+def test_crossfade_ends_on_each_cut_and_keeps_total_length(tmp_path):
+    colors = {"red": (255, 0, 0), "lime": (0, 255, 0), "blue": (0, 0, 255)}
+    paths = []
+    for name in colors:
+        path = tmp_path / f"{name}.mp4"
+        subprocess.run(
+            [CAPABLE, "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+             f"color={name}:size=32x32:rate=24:duration=1", "-pix_fmt", "yuv420p", str(path)],
+            check=True,
+        )  # fmt: skip
+        paths.append(path)
+    out = tmp_path / "joined.mp4"
+
+    run_ffmpeg(ff.build_crossfade_video_args(paths, [1.0, 1.0, 1.0], 0.5, 24, out))
+
+    raw = subprocess.run(
+        [CAPABLE, "-v", "error", "-i", str(out), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+        capture_output=True,
+        check=True,
+    ).stdout
+    frames = np.frombuffer(raw, np.uint8).reshape(-1, 32, 32, 3)
+    means = [frame.reshape(-1, 3).mean(axis=0) for frame in frames]
+    assert len(means) == 72  # same length as a plain concat
+    assert means[11] == pytest.approx(colors["red"], abs=8)  # before the fade
+    assert 60 < means[18][0] < 200 and 60 < means[18][1] < 200  # mid-fade into lime
+    assert means[24] == pytest.approx(colors["lime"], abs=8)  # the fade ends on the cut
+    assert means[35] == pytest.approx(colors["lime"], abs=8)
+    assert means[47][2] < 240  # still fading on the frame before the second cut
+    assert means[48] == pytest.approx(colors["blue"], abs=8)
 
 
 def test_build_voice_mix_args_delays_each_input():
@@ -439,6 +471,18 @@ def test_render_end_to_end_with_words(tmp_path, config):
 
     expected_total = project.scenes[-1].shots[-1].start + project.scenes[-1].shots[-1].duration
     assert info.duration == pytest.approx(expected_total, abs=1 / project.fps + 0.05)
+
+
+def test_render_end_to_end_with_crossfade_keeps_timeline(tmp_path, config):
+    config.render.transition_seconds = 0.5
+    project = _build_synthetic_project(tmp_path, config, with_words=False, with_music=False)
+    assert len(project.all_shots()) > 1
+    final_path = compose(project, tmp_path, config)
+
+    expected_total = project.scenes[-1].shots[-1].start + project.scenes[-1].shots[-1].duration
+    assert probe_video(final_path).duration == pytest.approx(
+        expected_total, abs=1 / project.fps + 0.05
+    )
 
 
 def test_render_end_to_end_with_music_ducking(tmp_path, config):

@@ -249,7 +249,10 @@ its own model in VRAM (~17 GB once loaded).
 ## 11. Render
 
 `render/` builds FFmpeg commands in Python (no MoviePy):
-1. concat shot clips (concat demuxer, all clips already normalised);
+1. concat shot clips (concat demuxer, all clips already normalised); with
+   `render.transition_seconds` > 0 (quotes: 0.6), a crossfade that ends exactly on each cut
+   instead, so it sits in the pause before the next line and the timeline does not move (the
+   incoming clip holds its first frame during the fade);
 2. voice track: scene audios placed at scene start (adelay/amix or concat with silences);
 3. optional music: the track from the music stage (`project.music`) or the fixed `music.path`;
    loop/trim, `volume_db`, side-chain ducking under voice (`music.duck`, default true; false keeps
@@ -261,7 +264,8 @@ its own model in VRAM (~17 GB once loaded).
    burn ASS subtitles (`fontsdir` = `assets/fonts`);
 5. loudness normalise to −14 LUFS, true peak −1 dB;
 6. H.264 High, yuv420p, CRF 18, AAC 192k 48 kHz, `+faststart` → `output/final.mp4`.
-Short fade-in/out (0.3 s) at start/end. Cuts between shots (Shorts pacing).
+Short fade-in/out (0.3 s) at start/end. Hard cuts between shots (Shorts pacing) unless
+`render.transition_seconds` is set.
 
 ## 12. GPU manager
 

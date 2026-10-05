@@ -51,10 +51,11 @@ subtitle:
 music:
   enabled: true
   provider: library
-  volume_db: -13
-  duck: false  # music stays at -15 dB under the voice too
+  volume_db: -8
+  duck: false  # music stays at volume_db under the voice too
 
 render:
   film_grain: 14
+  transition_seconds: 0.6  # crossfade in the pause before each line
   vignette: true
   dust: 8

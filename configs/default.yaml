@@ -87,6 +87,7 @@ render:
   loudness_lufs: -14
   true_peak_db: -1
   fade_seconds: 0.3
+  transition_seconds: 0  # crossfade ending on each cut between shots (0 = hard cut; quotes use 0.6)
   film_grain: 0      # moving film grain strength (0 = off; quotes videos use ~14)
   vignette: false
   dust: 0            # old-film black dust specks per frame on average (0 = off; quotes use ~8)
