@@ -107,5 +107,20 @@ music:
     bpm: 70
     key_scale: ""
 
+youtube:
+  auto_upload_after_render: true
+  metadata_provider: llm  # llm: vary title/description/tags; template: deterministic fallback
+  # YouTube classifies square/vertical uploads up to 3 minutes as Shorts.
+  # 22 = People & Blogs, a natural default for philosophy / life / love quote videos.
+  category_id: "22"
+  privacy_status: private
+  publish_time: "19:00"
+  publish_timezone: Asia/Ho_Chi_Minh
+  token_file: token.json
+  client_secret_file: client_secret.json
+  contains_synthetic_media: false
+  self_declared_made_for_kids: false
+  notify_subscribers: true
+
 gpu:
   device: cuda

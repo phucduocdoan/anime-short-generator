@@ -169,6 +169,7 @@ class ProjectSpec(BaseModel):
     )
     music: str | None = None  # relative path to the generated background music (music stage)
     output: str | None = None  # relative path to final.mp4
+    youtube_uploads: list[dict[str, str | None]] = Field(default_factory=list)
 
     def all_shots(self) -> list[Shot]:
         return [shot for scene in self.scenes for shot in scene.shots]

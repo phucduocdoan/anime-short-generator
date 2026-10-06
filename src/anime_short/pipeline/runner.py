@@ -105,7 +105,7 @@ def spec_to_overrides(spec: dict[str, Any]) -> dict[str, Any]:
         overrides["timeline"] = {"max_shot_seconds": script["max_scene_seconds"]}
     if "timeline" in spec:
         overrides["timeline"] = {**overrides.get("timeline", {}), **spec["timeline"]}
-    for section in ("llm", "subtitle", "music", "render"):
+    for section in ("llm", "subtitle", "music", "render", "youtube"):
         if section in spec:
             overrides[section] = spec[section]
     return overrides

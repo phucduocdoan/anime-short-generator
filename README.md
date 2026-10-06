@@ -97,6 +97,9 @@ uv run anime-short generate examples/quotes_love_life.yaml
 # ...or from a bare topic
 uv run anime-short generate --topic "a quiet morning in Hoi An" --duration 45
 
+# generate/resume uploads to YouTube after render by default; opt out when needed
+uv run anime-short generate examples/quotes_love_life.yaml --no-upload
+
 # resume a project (runs every stage/item not already done)
 uv run anime-short resume quotes_love_life
 
@@ -105,10 +108,33 @@ uv run anime-short images quotes_love_life --force
 
 # inspect progress
 uv run anime-short status quotes_love_life
+
+# one-time YouTube OAuth setup (needs client_secret.json in the repo root)
+uv run anime-short youtube-auth
+
+# validate and preview YouTube metadata without uploading
+uv run anime-short upload quotes_love_life --dry-run
+
+# upload the rendered Short as private, or schedule it
+uv run anime-short upload quotes_love_life --privacy private
+uv run anime-short upload quotes_love_life --publish-date 2026-10-06
+
+# monitor uploaded videos, then render/re-read the latest local report
+uv run anime-short monitor fetch --days 7
+uv run anime-short monitor report
+uv run anime-short monitor recommend
 ```
 
 Each project lives at `workspace/<project_id>/` (gitignored): `project.json` plus every
 intermediate artifact, ending in `output/final.mp4`.
+YouTube upload uses category `22` (People & Blogs) by default for philosophy/life/quote Shorts.
+YouTube classifies square or vertical videos up to three minutes as Shorts; the upload command
+checks that before it contacts the API. Auto-upload is enabled by default after render and skips
+projects that already have a recorded YouTube upload. Metadata uses a channel-safe base template
+plus the configured LLM for varied titles, descriptions, and tags; if the LLM is unavailable it
+falls back to the template.
+Monitor fetch may ask for OAuth again because it needs read-only YouTube/Analytics scopes in
+addition to the upload scope. It writes snapshots and reports under `workspace/analytics/`.
 
 ## Folder structure
 

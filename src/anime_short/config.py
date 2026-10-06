@@ -103,6 +103,20 @@ class GPUConfig(BaseModel):
     device: str = "cuda"
 
 
+class YouTubeConfig(BaseModel):
+    auto_upload_after_render: bool = True
+    metadata_provider: str = "llm"
+    category_id: str = "22"
+    privacy_status: str = "private"
+    publish_time: str = "19:00"
+    publish_timezone: str = "Asia/Ho_Chi_Minh"
+    token_file: str = "token.json"
+    client_secret_file: str = "client_secret.json"
+    contains_synthetic_media: bool = False
+    self_declared_made_for_kids: bool = False
+    notify_subscribers: bool = True
+
+
 class AppConfig(BaseModel):
     workspace_dir: Path = Path("workspace")
     llm: LLMConfig
@@ -114,6 +128,7 @@ class AppConfig(BaseModel):
     subtitle: SubtitleConfig = SubtitleConfig()
     render: RenderConfig = RenderConfig()
     music: MusicConfig = MusicConfig()
+    youtube: YouTubeConfig = YouTubeConfig()
     gpu: GPUConfig = GPUConfig()
 
     def project_dir(self, project_id: str) -> Path:
