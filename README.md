@@ -30,6 +30,9 @@ image/video generation.
 - **VRAM-gated GPU stages**: every GPU-using stage measures free VRAM before loading a model
   (the GPU may be shared with other processes) and raises/falls back cleanly instead of risking
   an OOM crash mid-run.
+- **Resident AnimeGen mode**: the default `animegen` path talks to a local always-on service
+  (`127.0.0.1:28180`) so the video model stays warm on GPU; `scripts/animegen_watchdog.sh`
+  starts it again if it is not healthy.
 - **Deterministic and resumable**: every generated artifact is seeded from stable ids, and the
   whole pipeline can be stopped and resumed — already-done work is skipped automatically.
 
@@ -108,6 +111,10 @@ uv run anime-short images quotes_love_life --force
 
 # inspect progress
 uv run anime-short status quotes_love_life
+
+# keep AnimeGen resident on GPU; watchdog starts it if needed
+scripts/animegen_watchdog.sh --wait
+uv run anime-short animegen status
 
 # one-time YouTube OAuth setup (needs client_secret.json in the repo root)
 uv run anime-short youtube-auth

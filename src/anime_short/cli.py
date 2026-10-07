@@ -23,8 +23,10 @@ from anime_short.youtube.validation import validate_short_video
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 monitor_app = typer.Typer(no_args_is_help=True, add_completion=False)
 queue_app = typer.Typer(no_args_is_help=True, add_completion=False)
+animegen_app = typer.Typer(no_args_is_help=True, add_completion=False)
 app.add_typer(monitor_app, name="monitor")
 app.add_typer(queue_app, name="queue")
+app.add_typer(animegen_app, name="animegen")
 console = Console()
 
 ProjectId = Annotated[str, typer.Argument(help="Project id (directory name under workspace/)")]
@@ -487,6 +489,37 @@ def _print_monitor_table(snapshot) -> None:
             video.get("youtube_title") or video.get("upload_title") or "-",
         )
     console.print(table)
+
+
+@animegen_app.command("serve")
+def animegen_serve(
+    host: Annotated[str, typer.Option("--host", help="Bind host")] = "127.0.0.1",
+    port: Annotated[int, typer.Option("--port", help="Bind port")] = 28180,
+) -> None:
+    """Run the resident AnimeGen service."""
+    from anime_short.video.server import serve
+
+    serve(load_config(), host, port)
+
+
+@animegen_app.command("status")
+def animegen_status(
+    url: Annotated[str | None, typer.Option("--url", help="AnimeGen service URL")] = None,
+) -> None:
+    """Check the resident AnimeGen service."""
+    from anime_short.video.service import health
+
+    config = load_config()
+    service_url = url or config.video.animegen.get("service_url", "http://127.0.0.1:28180")
+    try:
+        payload = health(service_url)
+    except Exception as exc:  # noqa: BLE001 - CLI should print connection failures clearly
+        console.print(f"[red]animegen service unavailable:[/] {exc}")
+        raise typer.Exit(code=1) from None
+    console.print(
+        f"[green]animegen service ok:[/] loaded={payload.get('loaded')} "
+        f"busy={payload.get('busy')} active_jobs={payload.get('active_jobs')}"
+    )
 
 
 @queue_app.command("plan-day")

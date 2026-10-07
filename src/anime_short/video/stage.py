@@ -85,6 +85,7 @@ def run_videos(
 ) -> None:
     provider = config.video.provider
     i2v_ok = False
+    allow_fallback = bool(config.video.animegen.get("allow_still_motion_fallback", True))
 
     if provider == "animegen" and not any(
         _needs_generation(s, project_dir, force) and not _keeps_keyframe(s)
@@ -93,15 +94,22 @@ def run_videos(
     ):
         i2v_ok = True  # nothing left to animate with i2v; don't load the model
     elif provider == "animegen":
-        generator = get_video_generator(config, "animegen")
-        generator.width, generator.height, generator.fps = (
-            project.width,
-            project.height,
-            project.fps,
-        )
-        min_free_gb = config.video.animegen.get("min_free_vram_gb", 24)
+        service_mode = config.video.animegen.get("service_mode", "on_demand")
         try:
-            with gpu_session(generator, min_free_gb=min_free_gb):
+            if service_mode == "resident":
+                from anime_short.video.service import AnimeGenServiceGenerator
+
+                generator = AnimeGenServiceGenerator(
+                    service_url=config.video.animegen.get(
+                        "service_url", "http://127.0.0.1:28180"
+                    ),
+                    timeout_seconds=float(
+                        config.video.animegen.get("service_timeout_seconds", 3600)
+                    ),
+                    width=project.width,
+                    height=project.height,
+                    fps=project.fps,
+                )
                 _run_shots(
                     generator,
                     VideoMode.i2v,
@@ -111,13 +119,47 @@ def run_videos(
                     force,
                     lambda shot: not _keeps_keyframe(shot),
                 )
-            i2v_ok = True
+                i2v_ok = True
+            elif service_mode == "on_demand":
+                generator = get_video_generator(config, "animegen")
+                generator.width, generator.height, generator.fps = (
+                    project.width,
+                    project.height,
+                    project.fps,
+                )
+                min_free_gb = config.video.animegen.get("min_free_vram_gb", 24)
+                with gpu_session(generator, min_free_gb=min_free_gb):
+                    _run_shots(
+                        generator,
+                        VideoMode.i2v,
+                        "animegen",
+                        project,
+                        project_dir,
+                        force,
+                        lambda shot: not _keeps_keyframe(shot),
+                    )
+                i2v_ok = True
+            else:
+                raise ValueError(f"unknown animegen service_mode: {service_mode}")
         except InsufficientVRAM as exc:
+            if not allow_fallback:
+                raise RuntimeError(f"animegen unavailable and fallback is disabled: {exc}") from exc
             log.warning("videos: animegen unavailable, falling back to still_motion: %s", exc)
         except Exception as exc:  # noqa: BLE001 - narrowed to OOM below, re-raised otherwise
             if not _is_oom(exc):
-                raise
-            log.warning("videos: animegen ran out of VRAM loading the model, falling back: %s", exc)
+                if not allow_fallback:
+                    raise RuntimeError(
+                        f"animegen unavailable and fallback is disabled: {exc}"
+                    ) from exc
+                log.warning("videos: animegen unavailable, falling back to still_motion: %s", exc)
+            else:
+                if not allow_fallback:
+                    raise RuntimeError(
+                        f"animegen ran out of VRAM and fallback is disabled: {exc}"
+                    ) from exc
+                log.warning(
+                    "videos: animegen ran out of VRAM loading the model, falling back: %s", exc
+                )
 
     fallback = get_video_generator(config, "still_motion")
     fallback.width, fallback.height, fallback.fps = project.width, project.height, project.fps

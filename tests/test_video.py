@@ -238,6 +238,82 @@ def test_run_videos_falls_back_to_still_motion_on_insufficient_vram(tmp_path: Pa
     assert (tmp_path / "clips" / "scene_01_a.mp4").exists()
 
 
+def test_run_videos_uses_resident_animegen_service(tmp_path: Path, monkeypatch):
+    service = FakeVideoGenerator()
+    fallback = FakeVideoGenerator()
+
+    class FakeServiceGenerator(FakeVideoGenerator):
+        def __init__(self, service_url, timeout_seconds, width, height, fps):
+            super().__init__()
+            service.__dict__.update(
+                service_url=service_url,
+                timeout_seconds=timeout_seconds,
+                width=width,
+                height=height,
+                fps=fps,
+            )
+
+        def generate(self, *args, **kwargs):
+            return service.generate(*args, **kwargs)
+
+    monkeypatch.setattr(
+        "anime_short.video.service.AnimeGenServiceGenerator", FakeServiceGenerator
+    )
+    monkeypatch.setattr(stage_mod, "get_video_generator", lambda config, name: fallback)
+
+    config = make_config(provider="animegen")
+    config.video.animegen.update(
+        {
+            "service_mode": "resident",
+            "service_url": "http://127.0.0.1:28180",
+            "service_timeout_seconds": 123,
+            "allow_still_motion_fallback": False,
+        }
+    )
+    project = make_project()
+    _prep_project_image(tmp_path, project)
+
+    run_videos(project, tmp_path, config, force=False)
+
+    assert service.calls == 1
+    assert fallback.calls == 0
+    assert service.width == project.width
+    assert service.height == project.height
+    assert service.fps == project.fps
+    shot = project.scenes[0].shots[0]
+    assert shot.video is not None
+    assert shot.video.mode == VideoMode.i2v
+    assert shot.video.provider == "animegen"
+
+
+def test_run_videos_strict_i2v_raises_instead_of_fallback(tmp_path: Path, monkeypatch):
+    class FailingServiceGenerator(FakeVideoGenerator):
+        def __init__(self, *args, **kwargs):
+            super().__init__()
+
+        def generate(self, *args, **kwargs):
+            raise RuntimeError("service down")
+
+    fallback = FakeVideoGenerator()
+    monkeypatch.setattr(
+        "anime_short.video.service.AnimeGenServiceGenerator", FailingServiceGenerator
+    )
+    monkeypatch.setattr(stage_mod, "get_video_generator", lambda config, name: fallback)
+
+    config = make_config(provider="animegen")
+    config.video.animegen.update(
+        {"service_mode": "resident", "allow_still_motion_fallback": False}
+    )
+    project = make_project()
+    _prep_project_image(tmp_path, project)
+
+    with pytest.raises(RuntimeError, match="fallback is disabled"):
+        run_videos(project, tmp_path, config, force=False)
+
+    assert fallback.calls == 0
+    assert project.scenes[0].shots[0].video is None
+
+
 def test_run_videos_skips_shots_without_image_or_duration(tmp_path: Path, monkeypatch):
     fake = FakeVideoGenerator()
     monkeypatch.setattr(stage_mod, "get_video_generator", lambda config, name: fake)

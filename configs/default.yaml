@@ -61,6 +61,10 @@ video:
   provider: animegen          # falls back to still_motion when VRAM gate fails
   animegen:
     repo: aidealab/AnimeGen-I2V
+    service_mode: resident       # resident: call the always-on local service; on_demand: load here
+    service_url: http://127.0.0.1:28180
+    service_timeout_seconds: 3600
+    allow_still_motion_fallback: false
     width: 480
     height: 832
     steps: 4
