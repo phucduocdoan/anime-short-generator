@@ -56,6 +56,7 @@ def test_plan_day_uses_llm_ideas_and_writes_specs(tmp_path, monkeypatch):
     assert len(loaded["items"]) == 2
     assert loaded["items"][0]["status"] == "pending"
     assert loaded["items"][0]["spec"]["content"]["format"] == "quotes"
+    assert loaded["items"][0]["spec"]["timeline"]["max_total_seconds"] == 58.5
     assert loaded["items"][0]["project_id"].startswith("2026_10_06_01_")
 
 

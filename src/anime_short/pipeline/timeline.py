@@ -121,14 +121,46 @@ def resolve_scene(
     return durations
 
 
+def resolve_spacing(project: ProjectSpec, config: AppConfig) -> tuple[float, float]:
+    """Return per-scene gap and final tail, shrinking silence when a max runtime is set."""
+    gap_seconds = config.timeline.scene_gap_seconds
+    tail_seconds = config.timeline.tail_seconds
+    max_total = config.timeline.max_total_seconds
+    if max_total is None:
+        return gap_seconds, tail_seconds
+
+    audio_total = sum(scene.audio.duration for scene in project.scenes if scene.audio is not None)
+    gap_count = max(0, len(project.scenes) - 1)
+    default_total = audio_total + gap_seconds * gap_count + tail_seconds
+    if default_total <= max_total:
+        return gap_seconds, tail_seconds
+
+    if audio_total > max_total:
+        raise ValueError(
+            f"voice audio is {audio_total:.2f}s, longer than timeline.max_total_seconds "
+            f"({max_total:.2f}s); regenerate a shorter script or faster voice"
+        )
+
+    remaining_silence = max_total - audio_total
+    tail_seconds = min(tail_seconds, remaining_silence)
+    remaining_silence -= tail_seconds
+    gap_seconds = min(gap_seconds, remaining_silence / gap_count) if gap_count else 0.0
+    log.info(
+        "timeline: shrank scene gaps to %.2fs and tail to %.2fs to fit %.2fs cap",
+        gap_seconds,
+        tail_seconds,
+        max_total,
+    )
+    return gap_seconds, tail_seconds
+
+
 def run_timeline(
     project: ProjectSpec, project_dir: Path, config: AppConfig, force: bool = False
 ) -> None:
     if project.stages.get("timeline") == StageStatus.done and not force:
         return
 
-    tail_seconds = config.timeline.tail_seconds
-    gap_seconds = config.timeline.scene_gap_seconds
+    gap_seconds, tail_seconds = resolve_spacing(project, config)
     cursor = 0.0
     for idx, scene in enumerate(project.scenes):
         if scene.audio is None:

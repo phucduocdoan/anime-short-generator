@@ -9,6 +9,7 @@ from anime_short.pipeline.timeline import (
     merge_short_durations,
     plan_scene_shots,
     resolve_scene,
+    resolve_spacing,
     run_timeline,
     snap_to_words,
 )
@@ -215,6 +216,41 @@ def test_run_timeline_sets_absolute_starts_and_stages(config, tmp_path):
 
     # project.json is saved
     assert (tmp_path / "project.json").exists()
+
+
+def test_run_timeline_shrinks_silence_to_fit_max_total(tmp_path):
+    config = load_config(
+        {
+            "llm": {"base_url": "http://x", "model": "m"},
+            "tts": {"provider": "vieneu"},
+            "image": {"provider": "anima"},
+            "video": {"provider": "animegen"},
+            "timeline": {
+                "scene_gap_seconds": 1.0,
+                "tail_seconds": 1.5,
+                "max_total_seconds": 58.5,
+            },
+        }
+    )
+    scenes = [make_scene(f"scene_{i:02d}", duration=4.0, n_shots=1) for i in range(1, 15)]
+    project = ProjectSpec(id="p", title="t", content=ContentSpec(topic="t"), scenes=scenes)
+
+    run_timeline(project, tmp_path, config)
+
+    last_shot = project.scenes[-1].shots[-1]
+    assert last_shot.start is not None
+    assert last_shot.duration is not None
+    assert last_shot.start + last_shot.duration == pytest.approx(58.5)
+    assert project.scenes[1].start == pytest.approx(4.0 + (58.5 - 56.0 - 1.5) / 13)
+
+
+def test_resolve_spacing_fails_when_voice_alone_exceeds_max(config):
+    config.timeline.max_total_seconds = 10.0
+    scenes = [make_scene("scene_01", duration=11.0, n_shots=1)]
+    project = ProjectSpec(id="p", title="t", content=ContentSpec(topic="t"), scenes=scenes)
+
+    with pytest.raises(ValueError, match="voice audio is 11.00s"):
+        resolve_spacing(project, config)
 
 
 def test_run_timeline_skips_when_already_done(config, tmp_path):

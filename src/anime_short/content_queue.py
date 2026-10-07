@@ -206,7 +206,11 @@ def build_spec(
             "reasoning_effort": "low",
         },
         "script": {"words_per_second": 2.8, "max_scene_seconds": 6},
-        "timeline": {"scene_gap_seconds": 1.0, "tail_seconds": 1.5},
+        "timeline": {
+            "scene_gap_seconds": 1.0,
+            "tail_seconds": 1.5,
+            "max_total_seconds": 58.5,
+        },
         "voice": {
             "provider": "gemini",
             "voice": "Enceladus",
