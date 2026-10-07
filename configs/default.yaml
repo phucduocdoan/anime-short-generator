@@ -65,6 +65,7 @@ video:
     service_url: http://127.0.0.1:28180
     service_timeout_seconds: 3600
     allow_still_motion_fallback: false
+    offload_strategy: none       # none: keep AnimeGen hot on GPU; model_cpu: save VRAM, slower first frame
     width: 480
     height: 832
     steps: 4

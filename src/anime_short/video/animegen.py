@@ -86,6 +86,7 @@ class AnimeGenGenerator:
         self.cfg = float(config.get("cfg", 1.0))
         self.native_fps = int(config.get("native_fps", 16))
         self.max_frames = int(config.get("max_frames", 81))
+        self.offload_strategy = str(config.get("offload_strategy", "none"))
         # Output (project) dims; set by video/stage.py from the ProjectSpec before generating.
         self.width = width
         self.height = height
@@ -139,7 +140,12 @@ class AnimeGenGenerator:
         transformer_2.enable_layerwise_casting(
             storage_dtype=torch.float8_e4m3fn, compute_dtype=torch.bfloat16
         )
-        pipe.enable_model_cpu_offload()
+        if self.offload_strategy == "model_cpu":
+            pipe.enable_model_cpu_offload()
+        elif self.offload_strategy == "none":
+            pipe.to("cuda")
+        else:
+            raise ValueError(f"unknown animegen offload_strategy: {self.offload_strategy}")
         self.pipe = pipe
 
     def unload(self) -> None:

@@ -57,6 +57,7 @@ class AnimeGenService:
             "loaded": self.loaded,
             "busy": self.active_jobs > 0,
             "active_jobs": self.active_jobs,
+            "offload_strategy": self.generator.offload_strategy,
         }
 
 

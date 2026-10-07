@@ -31,7 +31,7 @@ image/video generation.
   (the GPU may be shared with other processes) and raises/falls back cleanly instead of risking
   an OOM crash mid-run.
 - **Resident AnimeGen mode**: the default `animegen` path talks to a local always-on service
-  (`127.0.0.1:28180`) so the video model stays warm on GPU; `scripts/animegen_watchdog.sh`
+  (`127.0.0.1:28180`) so the video model stays hot on GPU; `scripts/animegen_watchdog.sh`
   starts it again if it is not healthy.
 - **Deterministic and resumable**: every generated artifact is seeded from stable ids, and the
   whole pipeline can be stopped and resumed — already-done work is skipped automatically.

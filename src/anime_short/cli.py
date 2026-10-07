@@ -518,7 +518,8 @@ def animegen_status(
         raise typer.Exit(code=1) from None
     console.print(
         f"[green]animegen service ok:[/] loaded={payload.get('loaded')} "
-        f"busy={payload.get('busy')} active_jobs={payload.get('active_jobs')}"
+        f"busy={payload.get('busy')} active_jobs={payload.get('active_jobs')} "
+        f"offload_strategy={payload.get('offload_strategy')}"
     )
 
 
