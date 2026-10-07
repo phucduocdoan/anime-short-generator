@@ -25,8 +25,8 @@ fi
 if pgrep -f "anime-short animegen serve" >/dev/null 2>&1; then
   :
 else
-  nohup uv run anime-short animegen serve --host 127.0.0.1 --port 28180 \
-    >> logs/animegen_service.log 2>&1 &
+  setsid uv run anime-short animegen serve --host 127.0.0.1 --port 28180 \
+    >> logs/animegen_service.log 2>&1 < /dev/null &
 fi
 
 if [[ "${wait_for_ready}" == true ]]; then
